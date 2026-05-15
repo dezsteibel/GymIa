@@ -4,28 +4,34 @@ import com.gymia.data.model.WorkoutSession
 import com.gymia.data.remote.AnthropicApi
 import com.gymia.data.remote.dto.AiMessage
 import com.gymia.data.remote.dto.AiRequest
+import com.gymia.data.remote.dto.WorkoutCycleDto
+import com.gymia.data.remote.dto.toDomain
+import com.gymia.domain.model.WorkoutCycle
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 class AiRepository @Inject constructor(
-    private val anthropicApi: AnthropicApi
+    private val anthropicApi: AnthropicApi,
+    private val json: Json
 ) {
-    suspend fun generateCycle(sessions: List<WorkoutSession>): Result<String> = runCatching {
+    suspend fun generateCycle(sessions: List<WorkoutSession>): Result<WorkoutCycle> = runCatching {
         val request = AiRequest(
             system = SYSTEM_PROMPT,
-            messages = listOf(
-                AiMessage(
-                    role = "user",
-                    content = buildUserMessage(sessions)
-                )
-            )
+            messages = listOf(AiMessage(role = "user", content = buildUserMessage(sessions)))
         )
-        anthropicApi.generateMessage(request).content.first().text
+        val responseText = anthropicApi.generateMessage(request).content.first().text
+        json.decodeFromString<WorkoutCycleDto>(responseText).toDomain()
     }
 
-    private fun buildUserMessage(sessions: List<WorkoutSession>): String =
-        "I have ${sessions.size} recent workout sessions. " +
-            "Please generate my next periodized training cycle based on this data. " +
-            "Respond only with the JSON object as specified."
+    private fun buildUserMessage(sessions: List<WorkoutSession>): String = """
+        Here is my recent workout history:
+        ${json.encodeToString(sessions)}
+
+        Please generate my next periodized training cycle based on this data.
+        Consider my performance trends, stagnation points, and progression opportunities.
+        Respond only with the JSON object as specified.
+    """.trimIndent()
 
     private companion object {
         const val SYSTEM_PROMPT =

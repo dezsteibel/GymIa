@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ExerciseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(exercise: Exercise)
+    suspend fun insert(exercise: Exercise): Long
 
     @Update
     suspend fun update(exercise: Exercise)
@@ -25,6 +25,9 @@ interface ExerciseDao {
 
     @Query("SELECT * FROM exercises WHERE id = :id")
     suspend fun getById(id: Long): Exercise?
+
+    @Query("SELECT * FROM exercises WHERE LOWER(name) = LOWER(:name) LIMIT 1")
+    suspend fun findByName(name: String): Exercise?
 
     @Query("SELECT * FROM exercises WHERE name LIKE '%' || :query || '%'")
     fun search(query: String): Flow<List<Exercise>>

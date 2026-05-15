@@ -96,7 +96,17 @@ private fun AppNavHost(navController: NavHostController, modifier: Modifier = Mo
         composable(Screen.History.route) { HistoryScreen() }
         composable(Screen.Progress.route) { ProgressScreen() }
         composable(Screen.Cardio.route) { CardioScreen() }
-        composable(Screen.AiCycle.route) { AiCycleScreen() }
+        composable(Screen.AiCycle.route) {
+            AiCycleScreen(
+                onAccept = {
+                    navController.navigate(Screen.Workout.route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
+        }
 
         composable("exercise_list") {
             ExerciseListScreen(onBack = { navController.popBackStack() })
