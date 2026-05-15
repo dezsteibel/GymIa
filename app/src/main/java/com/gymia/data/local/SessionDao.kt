@@ -30,6 +30,16 @@ interface SessionDao {
     @Query("SELECT * FROM workout_sessions WHERE id = :id")
     suspend fun getSessionById(id: Long): WorkoutSession?
 
+    @Query("""
+        SELECT workout_sessions.*, COUNT(set_records.id) as setCount, workout_plans.name as planName
+        FROM workout_sessions
+        LEFT JOIN set_records ON set_records.sessionId = workout_sessions.id
+        LEFT JOIN workout_plans ON workout_plans.id = workout_sessions.planId
+        GROUP BY workout_sessions.id
+        ORDER BY workout_sessions.date DESC
+    """)
+    fun getSessionsWithSetCount(): Flow<List<SessionWithCount>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSets(sets: List<SetRecord>)
 
@@ -38,4 +48,7 @@ interface SessionDao {
 
     @Query("SELECT * FROM set_records WHERE exerciseId = :exerciseId ORDER BY sessionId DESC")
     fun getSetsForExercise(exerciseId: Long): Flow<List<SetRecord>>
+
+    @Query("SELECT * FROM set_records WHERE exerciseId = :exerciseId ORDER BY id DESC LIMIT 1")
+    suspend fun getLastSetForExercise(exerciseId: Long): SetRecord?
 }
