@@ -2,9 +2,12 @@ package com.gymia.data.repository
 
 import androidx.room.withTransaction
 import com.gymia.data.local.AppDatabase
+import com.gymia.data.local.CardioDao
 import com.gymia.data.local.ExerciseDao
 import com.gymia.data.local.SessionDao
+import com.gymia.data.local.SetWithDate
 import com.gymia.data.local.WorkoutDao
+import com.gymia.data.model.CardioRecord
 import com.gymia.data.model.DayExercise
 import com.gymia.data.model.Exercise
 import com.gymia.data.model.SetRecord
@@ -26,6 +29,7 @@ class WorkoutRepository @Inject constructor(
     private val workoutDao: WorkoutDao,
     private val sessionDao: SessionDao,
     private val exerciseDao: ExerciseDao,
+    private val cardioDao: CardioDao,
     private val database: AppDatabase
 ) {
     fun getAllExercises(): Flow<List<Exercise>> = exerciseDao.getAllExercises()
@@ -114,4 +118,10 @@ class WorkoutRepository @Inject constructor(
 
     suspend fun getLastLoadForExercise(exerciseId: Long): Float? =
         sessionDao.getLastSetForExercise(exerciseId)?.loadKg
+
+    fun getAllSetsWithDates(): Flow<List<SetWithDate>> = sessionDao.getAllSetsWithDates()
+
+    fun getCardioHistory(): Flow<List<CardioRecord>> = cardioDao.getAllRecords()
+
+    suspend fun saveCardioRecord(record: CardioRecord): Long = cardioDao.insert(record)
 }
