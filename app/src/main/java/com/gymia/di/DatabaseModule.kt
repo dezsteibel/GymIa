@@ -21,7 +21,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, "gymia_database").build()
+        Room.databaseBuilder(context, AppDatabase::class.java, "gymia_database")
+            .fallbackToDestructiveMigration()
+            .build()
 
     @Provides
     fun provideExerciseDao(db: AppDatabase): ExerciseDao = db.exerciseDao()

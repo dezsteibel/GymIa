@@ -3,6 +3,7 @@ package com.gymia.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.gymia.data.model.CardioRecord
+import com.gymia.data.model.DayExercise
 import com.gymia.data.model.Exercise
 import com.gymia.data.model.SetRecord
 import com.gymia.data.model.WorkoutDay
@@ -14,11 +15,12 @@ import com.gymia.data.model.WorkoutSession
         Exercise::class,
         WorkoutPlan::class,
         WorkoutDay::class,
+        DayExercise::class,
         WorkoutSession::class,
         SetRecord::class,
         CardioRecord::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
