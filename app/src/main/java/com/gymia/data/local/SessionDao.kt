@@ -51,4 +51,12 @@ interface SessionDao {
 
     @Query("SELECT * FROM set_records WHERE exerciseId = :exerciseId ORDER BY id DESC LIMIT 1")
     suspend fun getLastSetForExercise(exerciseId: Long): SetRecord?
+
+    @Query("""
+        SELECT sr.exerciseId, sr.reps, sr.loadKg, ws.date, sr.sessionId
+        FROM set_records sr
+        INNER JOIN workout_sessions ws ON ws.id = sr.sessionId
+        ORDER BY ws.date ASC
+    """)
+    fun getAllSetsWithDates(): Flow<List<SetWithDate>>
 }
