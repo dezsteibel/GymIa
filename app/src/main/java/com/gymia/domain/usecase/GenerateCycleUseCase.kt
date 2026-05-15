@@ -11,8 +11,6 @@ class GenerateCycleUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(): Result<WorkoutCycle> {
         val sessions = workoutRepository.getRecentSessions()
-        val result = aiRepository.generateCycle(sessions)
-        result.getOrNull()?.let { cycle -> workoutRepository.saveAiCycle(cycle) }
-        return result
+        return aiRepository.generateCycle(sessions)
     }
 }

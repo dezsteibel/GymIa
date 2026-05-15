@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,15 +48,16 @@ fun AiCycleScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    LaunchedEffect(Unit) {
+        viewModel.navigateToWorkout.collect { onAccept() }
+    }
+
     when (val state = uiState) {
         is AiCycleViewModel.UiState.Idle -> IdleContent(onGenerate = viewModel::generateCycle)
         is AiCycleViewModel.UiState.Loading -> LoadingContent()
         is AiCycleViewModel.UiState.Success -> SuccessContent(
             cycle = state.cycle,
-            onAccept = {
-                viewModel.reset()
-                onAccept()
-            },
+            onAccept = { viewModel.acceptCycle(state.cycle) },
             onReject = viewModel::reset
         )
         is AiCycleViewModel.UiState.Error -> ErrorContent(
