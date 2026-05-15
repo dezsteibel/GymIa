@@ -15,7 +15,9 @@ import com.gymia.data.model.WorkoutDay
 import com.gymia.data.model.WorkoutPlan
 import com.gymia.data.model.WorkoutSession
 import com.gymia.domain.model.DayInput
+import com.gymia.domain.model.DomainCardioRecord
 import com.gymia.domain.model.DomainExercise
+import com.gymia.domain.model.DomainSetWithDate
 import com.gymia.domain.model.DomainWorkoutDay
 import com.gymia.domain.model.DomainWorkoutPlan
 import com.gymia.domain.model.ExerciseForDay
@@ -119,9 +121,21 @@ class WorkoutRepository @Inject constructor(
     suspend fun getLastLoadForExercise(exerciseId: Long): Float? =
         sessionDao.getLastSetForExercise(exerciseId)?.loadKg
 
-    fun getAllSetsWithDates(): Flow<List<SetWithDate>> = sessionDao.getAllSetsWithDates()
+    fun getAllExercisesAsDomain(): Flow<List<DomainExercise>> =
+        exerciseDao.getAllExercises().map { list ->
+            list.map { DomainExercise(it.id, it.name, it.muscleGroup, it.equipmentType) }
+        }
 
-    fun getCardioHistory(): Flow<List<CardioRecord>> = cardioDao.getAllRecords()
+    fun getAllSetsWithDates(): Flow<List<DomainSetWithDate>> =
+        sessionDao.getAllSetsWithDates().map { list ->
+            list.map { DomainSetWithDate(it.exerciseId, it.reps, it.loadKg, it.date, it.sessionId) }
+        }
 
-    suspend fun saveCardioRecord(record: CardioRecord): Long = cardioDao.insert(record)
+    fun getCardioHistory(): Flow<List<DomainCardioRecord>> =
+        cardioDao.getAllRecords().map { list ->
+            list.map { DomainCardioRecord(it.id, it.date, it.activityType, it.durationMinutes, it.distanceKm, it.notes) }
+        }
+
+    suspend fun saveCardioRecord(record: DomainCardioRecord): Long =
+        cardioDao.insert(CardioRecord(record.id, record.date, record.activityType, record.durationMinutes, record.distanceKm, record.notes))
 }

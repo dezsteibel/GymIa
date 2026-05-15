@@ -36,7 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.gymia.data.model.CardioRecord
+import com.gymia.domain.model.DomainCardioRecord
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -114,7 +114,7 @@ private fun ReadyContent(state: CardioViewModel.UiState.Ready, modifier: Modifie
 }
 
 @Composable
-private fun CardioRecordCard(record: CardioRecord) {
+private fun CardioRecordCard(record: DomainCardioRecord) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(CARD_PADDING_DP.dp)) {
             Row(

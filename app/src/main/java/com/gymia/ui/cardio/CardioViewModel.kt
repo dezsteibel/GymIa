@@ -2,7 +2,7 @@ package com.gymia.ui.cardio
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gymia.data.model.CardioRecord
+import com.gymia.domain.model.DomainCardioRecord
 import com.gymia.domain.usecase.GetCardioHistoryUseCase
 import com.gymia.domain.usecase.SaveCardioUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +24,7 @@ class CardioViewModel @Inject constructor(
     sealed class UiState {
         object Loading : UiState()
         data class Ready(
-            val history: List<CardioRecord>,
+            val history: List<DomainCardioRecord>,
             val showForm: Boolean = false,
             val activityType: String = ActivityType.RUN,
             val durationInput: String = "",
@@ -106,7 +106,9 @@ class CardioViewModel @Inject constructor(
             _uiState.value = current.copy(isSaving = true)
             try {
                 saveCardioUseCase(
-                    CardioRecord(
+                    DomainCardioRecord(
+                        id = 0,
+                        date = System.currentTimeMillis(),
                         activityType = current.activityType,
                         durationMinutes = duration,
                         distanceKm = current.distanceInput.toFloatOrNull(),

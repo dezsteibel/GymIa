@@ -1,12 +1,12 @@
 package com.gymia.domain.usecase
 
-import com.gymia.data.local.SetWithDate
-import com.gymia.data.model.Exercise
-import com.gymia.data.model.WorkoutSession
 import com.gymia.data.repository.WorkoutRepository
+import com.gymia.domain.model.DomainExercise
+import com.gymia.domain.model.DomainSetWithDate
 import com.gymia.domain.model.ExerciseProgress
 import com.gymia.domain.model.ProgressPoint
 import com.gymia.domain.model.ProgressSummary
+import com.gymia.domain.model.SessionSummary
 import com.gymia.domain.model.WeeklyVolumePoint
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -19,16 +19,16 @@ class GetProgressUseCase @Inject constructor(
     operator fun invoke(): Flow<ProgressSummary> =
         combine(
             repository.getAllSetsWithDates(),
-            repository.getAllExercises(),
-            repository.getAllSessions()
+            repository.getAllExercisesAsDomain(),
+            repository.getSessionSummaries()
         ) { sets, exercises, sessions ->
             buildProgressSummary(sets, exercises, sessions)
         }
 
     private fun buildProgressSummary(
-        sets: List<SetWithDate>,
-        exercises: List<Exercise>,
-        sessions: List<WorkoutSession>
+        sets: List<DomainSetWithDate>,
+        exercises: List<DomainExercise>,
+        sessions: List<SessionSummary>
     ): ProgressSummary {
         val exerciseMap = exercises.associateBy { it.id }
         val exerciseProgresses = buildExerciseProgresses(sets, exerciseMap)
@@ -46,8 +46,8 @@ class GetProgressUseCase @Inject constructor(
     }
 
     private fun buildExerciseProgresses(
-        sets: List<SetWithDate>,
-        exerciseMap: Map<Long, Exercise>
+        sets: List<DomainSetWithDate>,
+        exerciseMap: Map<Long, DomainExercise>
     ): List<ExerciseProgress> =
         sets.groupBy { it.exerciseId }.mapNotNull { (exerciseId, exerciseSets) ->
             val exercise = exerciseMap[exerciseId] ?: return@mapNotNull null
@@ -67,7 +67,7 @@ class GetProgressUseCase @Inject constructor(
             )
         }.sortedBy { it.exerciseName }
 
-    private fun buildWeeklyVolumes(sets: List<SetWithDate>): List<WeeklyVolumePoint> =
+    private fun buildWeeklyVolumes(sets: List<DomainSetWithDate>): List<WeeklyVolumePoint> =
         sets.groupBy { weekStart(it.date) }
             .map { (weekStart, weekSets) ->
                 WeeklyVolumePoint(
@@ -89,6 +89,8 @@ class GetProgressUseCase @Inject constructor(
     }
 
     companion object {
-        private const val CYCLE_DURATION_MS = 28L * 24 * 60 * 60 * 1000
+        private const val MILLIS_PER_DAY = 24L * 60 * 60 * 1000
+        private const val CYCLE_DURATION_DAYS = 28L
+        private const val CYCLE_DURATION_MS = CYCLE_DURATION_DAYS * MILLIS_PER_DAY
     }
 }
