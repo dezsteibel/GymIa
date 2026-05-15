@@ -2,7 +2,6 @@ package com.gymia.data.local
 
 import androidx.room.Dao
 import androidx.room.Delete
-import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -10,12 +9,6 @@ import androidx.room.Update
 import com.gymia.data.model.SetRecord
 import com.gymia.data.model.WorkoutSession
 import kotlinx.coroutines.flow.Flow
-
-data class SessionWithCount(
-    @Embedded val session: WorkoutSession,
-    val setCount: Int,
-    val planName: String?
-)
 
 @Dao
 interface SessionDao {

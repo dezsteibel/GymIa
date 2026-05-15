@@ -2,30 +2,15 @@ package com.gymia.data.local
 
 import androidx.room.Dao
 import androidx.room.Delete
-import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Update
 import com.gymia.data.model.DayExercise
-import com.gymia.data.model.Exercise
 import com.gymia.data.model.WorkoutDay
 import com.gymia.data.model.WorkoutPlan
 import kotlinx.coroutines.flow.Flow
-
-data class PlanWithDaysEntity(
-    @Embedded val plan: WorkoutPlan,
-    @Relation(parentColumn = "id", entityColumn = "planId")
-    val days: List<WorkoutDay>
-)
-
-data class DayExerciseWithDetail(
-    @Embedded val dayExercise: DayExercise,
-    @Relation(parentColumn = "exerciseId", entityColumn = "id")
-    val exercise: Exercise
-)
 
 @Dao
 interface WorkoutDao {

@@ -1,6 +1,6 @@
 package com.gymia.ui.workout
 
-import com.gymia.data.model.Exercise
+import com.gymia.domain.model.DomainExercise
 
 data class ActiveSessionUiState(
     val isLoading: Boolean = true,
@@ -15,7 +15,7 @@ data class ActiveSessionUiState(
 )
 
 data class ExerciseSessionState(
-    val exercise: Exercise,
+    val exercise: DomainExercise,
     val setsTarget: Int,
     val loggedSets: List<SetEntry>,
     val lastBestLoad: Float? = null

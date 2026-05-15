@@ -40,7 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.gymia.data.model.WorkoutDay
+import com.gymia.domain.model.DomainWorkoutDay
 import com.gymia.domain.model.PlanWithDays
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -150,7 +150,7 @@ private fun PlanHeader(name: String, isExpanded: Boolean, onToggle: () -> Unit) 
 }
 
 @Composable
-private fun PlanDaysList(days: List<WorkoutDay>, onStartSession: (Long) -> Unit) {
+private fun PlanDaysList(days: List<DomainWorkoutDay>, onStartSession: (Long) -> Unit) {
     Column {
         Spacer(Modifier.height(8.dp))
         if (days.isEmpty()) {
@@ -166,7 +166,7 @@ private fun PlanDaysList(days: List<WorkoutDay>, onStartSession: (Long) -> Unit)
 }
 
 @Composable
-private fun DayRow(day: WorkoutDay, onStartSession: (Long) -> Unit) {
+private fun DayRow(day: DomainWorkoutDay, onStartSession: (Long) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
