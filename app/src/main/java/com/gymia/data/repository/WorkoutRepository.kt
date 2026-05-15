@@ -14,6 +14,7 @@ import com.gymia.data.model.SetRecord
 import com.gymia.data.model.WorkoutDay
 import com.gymia.data.model.WorkoutPlan
 import com.gymia.data.model.WorkoutSession
+import com.gymia.domain.model.CycleExercise
 import com.gymia.domain.model.DayInput
 import com.gymia.domain.model.DomainCardioRecord
 import com.gymia.domain.model.DomainExercise
@@ -23,6 +24,7 @@ import com.gymia.domain.model.DomainWorkoutPlan
 import com.gymia.domain.model.ExerciseForDay
 import com.gymia.domain.model.PlanWithDays
 import com.gymia.domain.model.SessionSummary
+import com.gymia.domain.model.WorkoutCycle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -138,4 +140,22 @@ class WorkoutRepository @Inject constructor(
 
     suspend fun saveCardioRecord(record: DomainCardioRecord): Long =
         cardioDao.insert(CardioRecord(record.id, record.date, record.activityType, record.durationMinutes, record.distanceKm, record.notes))
+
+    suspend fun saveAiCycle(cycle: WorkoutCycle): Long = database.withTransaction {
+        val planId = workoutDao.insertPlan(WorkoutPlan(name = cycle.cycleName, source = "ai_generated"))
+        cycle.days.forEachIndexed { dayIndex, day ->
+            val dayId = workoutDao.insertDay(WorkoutDay(planId = planId, label = day.dayLabel, order = dayIndex))
+            day.exercises.forEachIndexed { exIndex, exercise ->
+                val exerciseId = findOrCreateExercise(exercise)
+                workoutDao.insertDayExercise(DayExercise(dayId = dayId, exerciseId = exerciseId, order = exIndex, setsTarget = exercise.sets))
+            }
+        }
+        planId
+    }
+
+    private suspend fun findOrCreateExercise(exercise: CycleExercise): Long {
+        val existing = exerciseDao.findByName(exercise.name)
+        if (existing != null) return existing.id
+        return exerciseDao.insert(Exercise(name = exercise.name, muscleGroup = "", equipmentType = ""))
+    }
 }

@@ -33,12 +33,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gymia.domain.model.ExerciseProgress
 import com.gymia.domain.model.WeeklyVolumePoint
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLineComponent
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisTickComponent
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import java.text.SimpleDateFormat
@@ -197,8 +204,8 @@ private fun MaxLoadChart(progress: ExerciseProgress) {
                 CartesianChartHost(
                     chart = rememberCartesianChart(
                         rememberLineCartesianLayer(),
-                        startAxis = rememberStartAxis(),
-                        bottomAxis = rememberBottomAxis()
+                        startAxis = VerticalAxis.rememberStart(),
+                        bottomAxis = HorizontalAxis.rememberBottom()
                     ),
                     modelProducer = modelProducer,
                     modifier = Modifier
@@ -243,9 +250,9 @@ private fun WeeklyVolumeChart(volumes: List<WeeklyVolumePoint>) {
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberColumnCartesianLayer(),
-                    startAxis = rememberStartAxis(),
-                    bottomAxis = rememberBottomAxis(
-                        valueFormatter = { value, _, _ ->
+                    startAxis = VerticalAxis.rememberStart(),
+                    bottomAxis = HorizontalAxis.rememberBottom(
+                        valueFormatter = CartesianValueFormatter { _, value, _ ->
                             weekLabels.getOrNull(value.toInt()) ?: ""
                         }
                     )

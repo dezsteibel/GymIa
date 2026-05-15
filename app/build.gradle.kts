@@ -11,7 +11,7 @@ val apiKey: String = project.findProperty("ANTHROPIC_API_KEY") as String? ?: ""
 
 android {
     namespace = "com.gymia"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.gymia"
@@ -92,7 +92,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     // Charts
-    implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
+    implementation("com.patrykandpatrick.vico:compose-m3:2.0.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
