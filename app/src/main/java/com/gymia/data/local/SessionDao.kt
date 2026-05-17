@@ -84,4 +84,20 @@ interface SessionDao {
         ORDER BY sr.exerciseId ASC, sr.setNumber ASC
     """)
     suspend fun getSetsWithExerciseNames(sessionId: Long): List<SetWithExerciseName>
+
+    @Query("SELECT * FROM workout_sessions ORDER BY date ASC")
+    suspend fun getAllSessionsOnce(): List<WorkoutSession>
+
+    @Query("SELECT * FROM set_records ORDER BY id ASC")
+    suspend fun getAllSetsOnce(): List<SetRecord>
+
+    @Query("""
+        SELECT sr.id, sr.sessionId, sr.exerciseId, sr.setNumber, sr.reps, sr.loadKg, sr.completed,
+               e.name as exerciseName, sr.notes
+        FROM set_records sr
+        INNER JOIN workout_sessions ws ON ws.id = sr.sessionId
+        INNER JOIN exercises e ON e.id = sr.exerciseId
+        ORDER BY ws.date ASC
+    """)
+    suspend fun getAllSetsWithNamesOnce(): List<SetWithExerciseName>
 }

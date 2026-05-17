@@ -16,10 +16,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -32,10 +34,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,10 +61,21 @@ fun WorkoutScreen(
     onStartSession: (dayId: Long) -> Unit,
     onCreatePlan: () -> Unit,
     onEditPlan: (planId: Long) -> Unit,
-    onManageExercises: () -> Unit
+    onManageExercises: () -> Unit,
+    onExport: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
     var planPendingDelete by remember { mutableStateOf<PlanWithDays?>(null) }
+    var planPendingDuplicate by remember { mutableStateOf<PlanWithDays?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbar()
+        }
+    }
 
     planPendingDelete?.let { plan ->
         AlertDialog(
@@ -78,11 +94,31 @@ fun WorkoutScreen(
         )
     }
 
+    planPendingDuplicate?.let { plan ->
+        AlertDialog(
+            onDismissRequest = { planPendingDuplicate = null },
+            title = { Text("Duplicate Plan") },
+            text = { Text("Duplicate \"${plan.plan.name}\"?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.duplicatePlan(plan.plan.id)
+                    planPendingDuplicate = null
+                }) { Text("Duplicate") }
+            },
+            dismissButton = {
+                TextButton(onClick = { planPendingDuplicate = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Workout") },
                 actions = {
+                    IconButton(onClick = onExport) {
+                        Icon(Icons.Default.FileDownload, contentDescription = "Export Data")
+                    }
                     IconButton(onClick = onManageExercises) {
                         Icon(Icons.Default.FitnessCenter, contentDescription = "Manage Exercises")
                     }
@@ -93,7 +129,8 @@ fun WorkoutScreen(
             FloatingActionButton(onClick = onCreatePlan) {
                 Icon(Icons.Default.Add, contentDescription = "Create Plan")
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         when (val state = uiState) {
             is WorkoutUiState.Loading -> LoadingContent(Modifier.padding(padding))
@@ -103,6 +140,7 @@ fun WorkoutScreen(
                 onStartSession = onStartSession,
                 onEditPlan = onEditPlan,
                 onDeletePlan = { planPendingDelete = it },
+                onDuplicate = { planPendingDuplicate = it },
                 modifier = Modifier.padding(padding)
             )
         }
@@ -129,6 +167,7 @@ private fun PlanListContent(
     onStartSession: (Long) -> Unit,
     onEditPlan: (Long) -> Unit,
     onDeletePlan: (PlanWithDays) -> Unit,
+    onDuplicate: (PlanWithDays) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (plans.isEmpty()) {
@@ -141,7 +180,8 @@ private fun PlanListContent(
                 planWithDays = planWithDays,
                 onStartSession = onStartSession,
                 onEdit = { onEditPlan(planWithDays.plan.id) },
-                onDelete = { onDeletePlan(planWithDays) }
+                onDelete = { onDeletePlan(planWithDays) },
+                onDuplicate = { onDuplicate(planWithDays) }
             )
             Spacer(Modifier.height(8.dp))
         }
@@ -153,7 +193,8 @@ private fun PlanCard(
     planWithDays: PlanWithDays,
     onStartSession: (Long) -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onDuplicate: () -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
@@ -168,7 +209,8 @@ private fun PlanCard(
                 isExpanded = isExpanded,
                 onToggle = { isExpanded = !isExpanded },
                 onEdit = onEdit,
-                onDelete = onDelete
+                onDelete = onDelete,
+                onDuplicate = onDuplicate
             )
             AnimatedVisibility(visible = isExpanded) {
                 PlanDaysList(days = planWithDays.days, onStartSession = onStartSession)
@@ -183,7 +225,8 @@ private fun PlanHeader(
     isExpanded: Boolean,
     onToggle: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onDuplicate: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle),
@@ -193,6 +236,9 @@ private fun PlanHeader(
         Text(name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
         IconButton(onClick = onEdit) {
             Icon(Icons.Default.Edit, contentDescription = "Edit Plan")
+        }
+        IconButton(onClick = onDuplicate) {
+            Icon(Icons.Default.ContentCopy, contentDescription = "Duplicate Plan")
         }
         IconButton(onClick = onDelete) {
             Icon(Icons.Default.Delete, contentDescription = "Delete Plan", tint = MaterialTheme.colorScheme.error)

@@ -25,4 +25,7 @@ interface CardioDao {
 
     @Query("SELECT * FROM cardio_records WHERE id = :id")
     suspend fun getById(id: Long): CardioRecord?
+
+    @Query("SELECT * FROM cardio_records ORDER BY date ASC")
+    suspend fun getAllCardioOnce(): List<CardioRecord>
 }

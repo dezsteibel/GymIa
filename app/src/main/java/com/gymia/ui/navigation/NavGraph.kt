@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Icon
@@ -26,6 +27,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.gymia.ui.ai.AiCycleScreen
 import com.gymia.ui.cardio.CardioScreen
+import com.gymia.ui.export.ExportScreen
+import com.gymia.ui.stats.StatsScreen
 import com.gymia.ui.history.HistoryScreen
 import com.gymia.ui.history.SessionDetailScreen
 import com.gymia.ui.progress.ProgressScreen
@@ -39,6 +42,7 @@ sealed class Screen(val route: String) {
     object Workout : Screen("workout")
     object History : Screen("history")
     object Progress : Screen("progress")
+    object Stats : Screen("stats")
     object Cardio : Screen("cardio")
     object AiCycle : Screen("ai_cycle")
 }
@@ -49,6 +53,7 @@ private val bottomNavItems = listOf(
     BottomNavItem(Screen.Workout, "Workout", Icons.Default.FitnessCenter),
     BottomNavItem(Screen.History, "History", Icons.Default.History),
     BottomNavItem(Screen.Progress, "Progress", Icons.AutoMirrored.Filled.TrendingUp),
+    BottomNavItem(Screen.Stats, "Stats", Icons.Default.BarChart),
     BottomNavItem(Screen.Cardio, "Cardio", Icons.AutoMirrored.Filled.DirectionsRun),
     BottomNavItem(Screen.AiCycle, "AI", Icons.Default.AutoAwesome)
 )
@@ -93,7 +98,8 @@ private fun AppNavHost(navController: NavHostController, modifier: Modifier = Mo
                 onStartSession = { dayId -> navController.navigate("active_session/$dayId") },
                 onCreatePlan = { navController.navigate("create_plan") },
                 onEditPlan = { planId -> navController.navigate("edit_plan/$planId") },
-                onManageExercises = { navController.navigate("exercise_list") }
+                onManageExercises = { navController.navigate("exercise_list") },
+                onExport = { navController.navigate("export") }
             )
         }
         composable(Screen.History.route) {
@@ -102,6 +108,7 @@ private fun AppNavHost(navController: NavHostController, modifier: Modifier = Mo
             )
         }
         composable(Screen.Progress.route) { ProgressScreen() }
+        composable(Screen.Stats.route) { StatsScreen() }
         composable(Screen.Cardio.route) { CardioScreen() }
         composable(Screen.AiCycle.route) {
             AiCycleScreen(
@@ -144,6 +151,9 @@ private fun AppNavHost(navController: NavHostController, modifier: Modifier = Mo
             arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
         ) {
             SessionDetailScreen(onBack = { navController.popBackStack() })
+        }
+        composable("export") {
+            ExportScreen(onBack = { navController.popBackStack() })
         }
     }
 }
