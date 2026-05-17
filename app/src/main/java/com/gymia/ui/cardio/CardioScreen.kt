@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.gymia.ui.components.EmptyHistory
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gymia.domain.model.DomainCardioRecord
 import java.text.SimpleDateFormat
@@ -118,9 +119,7 @@ private fun ReadyContent(
     onDeleteClick: (DomainCardioRecord) -> Unit
 ) {
     if (state.history.isEmpty()) {
-        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No cardio logged yet.", style = MaterialTheme.typography.bodyMedium)
-        }
+        EmptyHistory(modifier.fillMaxSize())
     } else {
         LazyColumn(
             modifier = modifier.fillMaxSize(),
