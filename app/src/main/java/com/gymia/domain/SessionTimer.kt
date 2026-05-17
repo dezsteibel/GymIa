@@ -1,7 +1,9 @@
 package com.gymia.domain
 
+import dagger.hilt.android.scopes.ViewModelScoped
 import javax.inject.Inject
 
+@ViewModelScoped
 class SessionTimer @Inject constructor() {
     private var startTimestamp: Long = 0L
     private var stopTimestamp: Long = 0L

@@ -9,8 +9,14 @@ import javax.inject.Inject
 class GetLoadSuggestionUseCase @Inject constructor(
     private val repository: WorkoutRepository
 ) {
+    private companion object {
+        const val MILLIS_PER_DAY = 24L * 60 * 60 * 1000
+        const val TREND_WINDOW_DAYS = 28L
+        const val TREND_WINDOW_MS = TREND_WINDOW_DAYS * MILLIS_PER_DAY
+    }
+
     suspend operator fun invoke(exerciseId: Long): LoadSuggestion {
-        val fourWeeksAgo = System.currentTimeMillis() - 28L * 24 * 60 * 60 * 1000
+        val fourWeeksAgo = System.currentTimeMillis() - TREND_WINDOW_MS
         val allSets = repository.getLoadTrendForExercise(exerciseId).first()
         val recentSets = allSets.filter { it.date >= fourWeeksAgo }
 
@@ -28,13 +34,10 @@ class GetLoadSuggestionUseCase @Inject constructor(
         if (sessionMaxLoads.size < 2) return LoadSuggestion(lastMax, Trend.STABLE, confidence)
 
         val previousAvg = sessionMaxLoads.dropLast(1).average().toFloat()
-        val last3 = sessionMaxLoads.takeLast(3)
-        val isStable = last3.size >= 3 && last3.max() - last3.min() <= last3.average() * 0.02
 
         return when {
             lastMax > previousAvg * 1.02f -> LoadSuggestion(lastMax + 2.5f, Trend.PROGRESSING, confidence)
             lastMax < previousAvg * 0.98f -> LoadSuggestion(lastMax * 0.95f, Trend.REGRESSING, confidence)
-            isStable -> LoadSuggestion(lastMax, Trend.STABLE, confidence)
             else -> LoadSuggestion(lastMax, Trend.STABLE, confidence)
         }
     }

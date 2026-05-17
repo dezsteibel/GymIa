@@ -69,16 +69,6 @@ interface SessionDao {
     """)
     fun getLoadTrendForExercise(exerciseId: Long): Flow<List<SetWithDate>>
 
-    @Query("""
-        SELECT sr.exerciseId, sr.reps, sr.loadKg, ws.date, sr.sessionId
-        FROM set_records sr
-        INNER JOIN workout_sessions ws ON ws.id = sr.sessionId
-        WHERE sr.exerciseId = :exerciseId
-        ORDER BY ws.date DESC
-        LIMIT :limit
-    """)
-    fun getLastNSessionsForExercise(exerciseId: Long, limit: Int): Flow<List<SetWithDate>>
-
     @Query("DELETE FROM set_records WHERE sessionId = :sessionId")
     suspend fun deleteSetsForSession(sessionId: Long)
 
