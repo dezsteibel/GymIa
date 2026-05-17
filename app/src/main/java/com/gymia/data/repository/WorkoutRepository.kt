@@ -6,6 +6,7 @@ import com.gymia.data.local.CardioDao
 import com.gymia.data.local.ExerciseDao
 import com.gymia.data.local.SessionDao
 import com.gymia.data.local.SetWithDate
+import com.gymia.data.local.SetWithExerciseName
 import com.gymia.data.local.WorkoutDao
 import com.gymia.domain.model.ExerciseWithSets
 import com.gymia.domain.model.SessionDetail
@@ -26,6 +27,7 @@ import com.gymia.domain.model.DomainSetWithDate
 import com.gymia.domain.model.DomainWorkoutDay
 import com.gymia.domain.model.DomainWorkoutPlan
 import com.gymia.domain.model.ExerciseForDay
+import com.gymia.domain.model.ExerciseOrderUpdate
 import com.gymia.domain.model.PlanWithDays
 import com.gymia.domain.model.SessionSummary
 import com.gymia.domain.model.WorkoutCycle
@@ -246,6 +248,27 @@ class WorkoutRepository @Inject constructor(
             exercises = exercises
         )
     }
+
+    suspend fun getAllSessionsOnce(): List<WorkoutSession> = sessionDao.getAllSessionsOnce()
+
+    suspend fun getAllSessionDatesOnce(): List<Long> =
+        sessionDao.getAllSessionsOnce().map { it.date }
+
+    suspend fun getAllSetsWithNamesOnce(): List<SetWithExerciseName> =
+        sessionDao.getAllSetsWithNamesOnce()
+
+    suspend fun upsertExerciseOrder(updates: List<ExerciseOrderUpdate>) =
+        workoutDao.upsertExerciseOrder(
+            updates.map { DayExercise(id = it.id, dayId = 0L, exerciseId = 0L, order = it.order, setsTarget = 0) }
+        )
+
+    suspend fun getAllExercisesOnce(): List<Exercise> = exerciseDao.getAllExercisesOnce()
+
+    suspend fun getAllPlansOnce(): List<WorkoutPlan> = workoutDao.getAllPlansOnce()
+
+    suspend fun getAllSetsOnce(): List<SetRecord> = sessionDao.getAllSetsOnce()
+
+    suspend fun getAllCardioOnce(): List<CardioRecord> = cardioDao.getAllCardioOnce()
 
     private suspend fun findOrCreateExercise(exercise: CycleExercise): Long {
         val existing = exerciseDao.findByName(exercise.name)

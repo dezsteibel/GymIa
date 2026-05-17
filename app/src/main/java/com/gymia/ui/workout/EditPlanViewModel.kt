@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.gymia.data.model.Exercise
 import com.gymia.domain.model.DayExerciseInput
 import com.gymia.domain.model.DayInput
+import com.gymia.domain.model.ExerciseOrderUpdate
 import com.gymia.domain.usecase.GetExercisesUseCase
+import com.gymia.domain.usecase.UpdateExerciseOrderUseCase
 import com.gymia.domain.usecase.UpdateWorkoutPlanUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,6 +42,7 @@ class EditPlanViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getExercisesUseCase: GetExercisesUseCase,
     private val updateWorkoutPlanUseCase: UpdateWorkoutPlanUseCase,
+    private val updateExerciseOrderUseCase: UpdateExerciseOrderUseCase,
     private val workoutRepository: com.gymia.data.repository.WorkoutRepository
 ) : ViewModel() {
 
@@ -71,7 +74,8 @@ class EditPlanViewModel @Inject constructor(
                                     muscleGroup = ef.exercise.muscleGroup,
                                     equipmentType = ef.exercise.equipmentType
                                 ),
-                                setsTarget = ef.setsTarget
+                                setsTarget = ef.setsTarget,
+                                dayExerciseId = ef.dayExerciseId
                             )
                         }
                     )
@@ -144,6 +148,30 @@ class EditPlanViewModel @Inject constructor(
         val exercises = days[dayIndex].exercises.toMutableList().also { it.removeAt(exerciseIndex) }
         days[dayIndex] = days[dayIndex].copy(exercises = exercises)
         _uiState.value = _uiState.value.copy(days = days)
+    }
+
+    fun reorderExercises(dayIndex: Int, from: Int, to: Int) {
+        val days = _uiState.value.days.toMutableList()
+        val exercises = days[dayIndex].exercises.toMutableList()
+        val moved = exercises.removeAt(from)
+        exercises.add(to, moved)
+        days[dayIndex] = days[dayIndex].copy(exercises = exercises)
+        _uiState.value = _uiState.value.copy(days = days)
+        persistExerciseOrder(dayIndex, exercises)
+    }
+
+    private fun persistExerciseOrder(dayIndex: Int, exercises: List<DraftDayExercise>) {
+        if (exercises.any { it.dayExerciseId == 0L }) return
+        viewModelScope.launch {
+            try {
+                val updates = exercises.mapIndexed { index, de ->
+                    ExerciseOrderUpdate(id = de.dayExerciseId, order = index)
+                }
+                updateExerciseOrderUseCase(updates)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
+        }
     }
 
     fun savePlan() {

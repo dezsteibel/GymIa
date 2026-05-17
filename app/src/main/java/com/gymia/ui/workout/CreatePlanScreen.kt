@@ -1,5 +1,7 @@
 package com.gymia.ui.workout
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -33,8 +36,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -126,7 +135,8 @@ internal fun DayCard(
     onLabelChange: (String) -> Unit,
     onRemoveDay: () -> Unit,
     onAddExercise: () -> Unit,
-    onRemoveExercise: (Int) -> Unit
+    onRemoveExercise: (Int) -> Unit,
+    onReorderExercise: ((from: Int, to: Int) -> Unit)? = null
 ) {
     Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(2.dp)) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -144,12 +154,20 @@ internal fun DayCard(
             }
             if (day.exercises.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                day.exercises.forEachIndexed { exIndex, de ->
-                    DayExerciseRow(
-                        name = de.exercise.name,
-                        setsTarget = de.setsTarget,
-                        onRemove = { onRemoveExercise(exIndex) }
+                if (onReorderExercise != null) {
+                    ReorderableExerciseList(
+                        exercises = day.exercises,
+                        onReorder = onReorderExercise,
+                        onRemove = onRemoveExercise
                     )
+                } else {
+                    day.exercises.forEachIndexed { exIndex, de ->
+                        DayExerciseRow(
+                            name = de.exercise.name,
+                            setsTarget = de.setsTarget,
+                            onRemove = { onRemoveExercise(exIndex) }
+                        )
+                    }
                 }
             }
             TextButton(onClick = onAddExercise) {
@@ -173,6 +191,83 @@ internal fun DayExerciseRow(name: String, setsTarget: Int, onRemove: () -> Unit)
         }
     }
     HorizontalDivider()
+}
+
+@Composable
+internal fun ReorderableExerciseList(
+    exercises: List<DraftDayExercise>,
+    onReorder: (from: Int, to: Int) -> Unit,
+    onRemove: (Int) -> Unit
+) {
+    val localExercises = remember(exercises) { exercises.toMutableStateList() }
+    var dragFromIndex by remember { mutableStateOf(-1) }
+    var dragToIndex by remember { mutableStateOf(-1) }
+
+    Column {
+        localExercises.forEachIndexed { index, de ->
+            val isDragging = index == dragFromIndex
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        if (isDragging) MaterialTheme.colorScheme.surfaceVariant
+                        else MaterialTheme.colorScheme.surface
+                    ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                var totalDragOffset by remember { mutableStateOf(0f) }
+                val itemHeightPx = with(LocalDensity.current) { 48.dp.toPx() }
+                Icon(
+                    imageVector = Icons.Default.DragHandle,
+                    contentDescription = "Drag to reorder",
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .pointerInput(localExercises.toList()) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    dragFromIndex = index
+                                    dragToIndex = index
+                                    totalDragOffset = 0f
+                                },
+                                onDrag = { change, offset ->
+                                    change.consume()
+                                    totalDragOffset += offset.y
+                                    val targetIndex = (dragFromIndex + (totalDragOffset / itemHeightPx).toInt())
+                                        .coerceIn(0, localExercises.size - 1)
+                                    if (targetIndex != dragToIndex) {
+                                        val item = localExercises.removeAt(dragToIndex)
+                                        localExercises.add(targetIndex, item)
+                                        dragToIndex = targetIndex
+                                    }
+                                },
+                                onDragEnd = {
+                                    if (dragFromIndex != dragToIndex) {
+                                        onReorder(dragFromIndex, dragToIndex)
+                                    }
+                                    dragFromIndex = -1
+                                    dragToIndex = -1
+                                    totalDragOffset = 0f
+                                },
+                                onDragCancel = {
+                                    dragFromIndex = -1
+                                    dragToIndex = -1
+                                    totalDragOffset = 0f
+                                }
+                            )
+                        }
+                )
+                Text(
+                    "${de.exercise.name}  ·  ${de.setsTarget} sets",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                )
+                IconButton(onClick = { onRemove(index) }) {
+                    Icon(Icons.Default.Close, contentDescription = "Remove")
+                }
+            }
+            HorizontalDivider()
+        }
+    }
 }
 
 @Composable

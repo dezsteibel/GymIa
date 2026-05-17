@@ -74,4 +74,17 @@ interface WorkoutDao {
 
     @Query("DELETE FROM workout_days WHERE planId = :planId")
     suspend fun deleteDaysForPlan(planId: Long)
+
+    @Query("UPDATE day_exercises SET `order` = :order WHERE id = :id")
+    suspend fun updateDayExerciseOrder(id: Long, order: Int)
+
+    @Transaction
+    suspend fun upsertExerciseOrder(exercises: List<DayExercise>) {
+        exercises.forEachIndexed { index, ex ->
+            updateDayExerciseOrder(ex.id, index)
+        }
+    }
+
+    @Query("SELECT * FROM workout_plans ORDER BY createdAt ASC")
+    suspend fun getAllPlansOnce(): List<WorkoutPlan>
 }

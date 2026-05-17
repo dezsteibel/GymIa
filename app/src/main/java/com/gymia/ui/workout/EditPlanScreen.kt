@@ -84,7 +84,8 @@ fun EditPlanScreen(
                     onLabelChange = { viewModel.onDayLabelChange(dayIndex, it) },
                     onRemoveDay = { viewModel.removeDay(dayIndex) },
                     onAddExercise = { viewModel.openExercisePicker(dayIndex) },
-                    onRemoveExercise = { exIndex -> viewModel.removeExerciseFromDay(dayIndex, exIndex) }
+                    onRemoveExercise = { exIndex -> viewModel.removeExerciseFromDay(dayIndex, exIndex) },
+                    onReorderExercise = { from, to -> viewModel.reorderExercises(dayIndex, from, to) }
                 )
                 Spacer(Modifier.height(8.dp))
             }

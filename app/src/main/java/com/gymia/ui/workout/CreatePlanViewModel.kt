@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class DraftDayExercise(val exercise: Exercise, val setsTarget: Int = 3)
+data class DraftDayExercise(val exercise: Exercise, val setsTarget: Int = 3, val dayExerciseId: Long = 0)
 
 data class DraftDay(val label: String = "", val exercises: List<DraftDayExercise> = emptyList())
 
