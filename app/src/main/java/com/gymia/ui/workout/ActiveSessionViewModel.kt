@@ -5,8 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymia.data.model.SetRecord
 import com.gymia.data.model.WorkoutSession
+import com.gymia.domain.SessionTimer
 import com.gymia.domain.usecase.GetExercisesForDayUseCase
 import com.gymia.domain.usecase.GetLastLoadForExerciseUseCase
+import com.gymia.domain.usecase.GetLoadSuggestionUseCase
 import com.gymia.domain.usecase.GetWorkoutDayUseCase
 import com.gymia.domain.usecase.LogSessionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,21 +28,34 @@ class ActiveSessionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getExercisesForDayUseCase: GetExercisesForDayUseCase,
     private val getLastLoadForExerciseUseCase: GetLastLoadForExerciseUseCase,
+    private val getLoadSuggestionUseCase: GetLoadSuggestionUseCase,
     private val getWorkoutDayUseCase: GetWorkoutDayUseCase,
-    private val logSessionUseCase: LogSessionUseCase
+    private val logSessionUseCase: LogSessionUseCase,
+    private val sessionTimer: SessionTimer
 ) : ViewModel() {
 
     private val dayId: Long = checkNotNull(savedStateHandle["dayId"])
-    private val sessionStartTime = System.currentTimeMillis()
     private var currentPlanId: Long? = null
     private var timerJob: Job? = null
+    private var elapsedJob: Job? = null
 
     private val _uiState = MutableStateFlow(ActiveSessionUiState())
     val uiState: StateFlow<ActiveSessionUiState> = _uiState.asStateFlow()
 
     init {
+        sessionTimer.start()
+        startElapsedTicker()
         loadDayInfo()
         loadExercises()
+    }
+
+    private fun startElapsedTicker() {
+        elapsedJob = viewModelScope.launch {
+            while (true) {
+                delay(1000)
+                _uiState.value = _uiState.value.copy(elapsedSeconds = sessionTimer.elapsed())
+            }
+        }
     }
 
     private fun loadDayInfo() {
@@ -66,9 +81,28 @@ class ActiveSessionViewModel @Inject constructor(
                     )
                 }
                 _uiState.value = _uiState.value.copy(isLoading = false, exercises = states)
+                states.forEachIndexed { index, state ->
+                    fetchSuggestionForExercise(index, state.exercise.id)
+                }
             }
             .catch { e -> _uiState.value = _uiState.value.copy(isLoading = false, error = e.message) }
             .launchIn(viewModelScope)
+    }
+
+    private fun fetchSuggestionForExercise(exerciseIndex: Int, exerciseId: Long) {
+        viewModelScope.launch {
+            val suggestion = runCatching { getLoadSuggestionUseCase(exerciseId) }.getOrNull()
+            val exercises = _uiState.value.exercises.toMutableList()
+            if (exerciseIndex < exercises.size) {
+                exercises[exerciseIndex] = exercises[exerciseIndex].copy(loadSuggestion = suggestion)
+                _uiState.value = _uiState.value.copy(exercises = exercises)
+            }
+        }
+    }
+
+    fun onSuggestionTap(exerciseIndex: Int, setIndex: Int) {
+        val suggestion = _uiState.value.exercises.getOrNull(exerciseIndex)?.loadSuggestion ?: return
+        updateSet(exerciseIndex, setIndex) { it.copy(loadKg = "%.1f".format(suggestion.suggestedLoad)) }
     }
 
     fun onRepsChange(exerciseIndex: Int, setIndex: Int, value: String) {
@@ -116,12 +150,47 @@ class ActiveSessionViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(selectedRestDuration = seconds)
     }
 
+    fun openNotesDialog(exerciseIndex: Int, setIndex: Int) {
+        val currentNotes = _uiState.value.exercises.getOrNull(exerciseIndex)
+            ?.loggedSets?.getOrNull(setIndex)?.notes ?: ""
+        _uiState.value = _uiState.value.copy(
+            notesDialogExerciseIndex = exerciseIndex,
+            notesDialogSetIndex = setIndex,
+            notesDialogText = currentNotes
+        )
+    }
+
+    fun onNotesDialogTextChange(text: String) {
+        _uiState.value = _uiState.value.copy(notesDialogText = text)
+    }
+
+    fun saveNotes() {
+        val state = _uiState.value
+        val exerciseIndex = state.notesDialogExerciseIndex ?: return
+        val setIndex = state.notesDialogSetIndex ?: return
+        updateSet(exerciseIndex, setIndex) { it.copy(notes = state.notesDialogText) }
+        _uiState.value = _uiState.value.copy(
+            notesDialogExerciseIndex = null,
+            notesDialogSetIndex = null,
+            notesDialogText = ""
+        )
+    }
+
+    fun dismissNotesDialog() {
+        _uiState.value = _uiState.value.copy(
+            notesDialogExerciseIndex = null,
+            notesDialogSetIndex = null,
+            notesDialogText = ""
+        )
+    }
+
     fun finishSession() {
+        elapsedJob?.cancel()
         val state = _uiState.value
         viewModelScope.launch {
             _uiState.value = state.copy(isSaving = true)
             try {
-                val durationMinutes = ((System.currentTimeMillis() - sessionStartTime) / 60000).toInt()
+                val durationMinutes = (sessionTimer.stop() / 60).coerceAtLeast(0)
                 val session = WorkoutSession(planId = currentPlanId, dayId = dayId, durationMinutes = durationMinutes)
                 val sets = buildSetRecords(state)
                 logSessionUseCase(session, sets)
@@ -139,7 +208,14 @@ class ActiveSessionViewModel @Inject constructor(
                 .mapNotNull { entry ->
                     val reps = entry.reps.toIntOrNull() ?: return@mapNotNull null
                     val load = entry.loadKg.toFloatOrNull() ?: return@mapNotNull null
-                    SetRecord(sessionId = 0, exerciseId = exerciseState.exercise.id, setNumber = entry.setNumber, reps = reps, loadKg = load)
+                    SetRecord(
+                        sessionId = 0,
+                        exerciseId = exerciseState.exercise.id,
+                        setNumber = entry.setNumber,
+                        reps = reps,
+                        loadKg = load,
+                        notes = entry.notes.ifBlank { null }
+                    )
                 }
         }
 

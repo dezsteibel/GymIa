@@ -11,5 +11,6 @@ data class SetRecord(
     val setNumber: Int,
     val reps: Int,
     val loadKg: Float,
-    val completed: Boolean = true
+    val completed: Boolean = true,
+    val notes: String? = null
 )
