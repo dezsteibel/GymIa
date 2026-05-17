@@ -13,6 +13,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -22,6 +23,11 @@ object AppModule {
     @Provides
     @Singleton
     fun provideJson(): Json = Json { ignoreUnknownKeys = true }
+
+    @Provides
+    @Singleton
+    @Named("exportJson")
+    fun provideExportJson(): Json = Json { prettyPrint = true; encodeDefaults = true }
 
     @Provides
     @Singleton

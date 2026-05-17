@@ -9,10 +9,10 @@ class GetGlobalStatsUseCase @Inject constructor(
     private val repository: WorkoutRepository
 ) {
     suspend operator fun invoke(): GlobalStats {
-        val sessions = repository.getAllSessionsOnce()
+        val sessionDates = repository.getAllSessionDatesOnce()
         val setsWithNames = repository.getAllSetsWithNamesOnce()
 
-        val totalSessions = sessions.size
+        val totalSessions = sessionDates.size
         val totalSetsLogged = setsWithNames.size
         val totalVolumeKg = setsWithNames.sumOf { (it.reps * it.loadKg).toDouble() }.toFloat()
 
@@ -24,7 +24,7 @@ class GetGlobalStatsUseCase @Inject constructor(
             .mapValues { it.value.size }
         val mostFrequentExercise = exerciseCounts.maxByOrNull { it.value }?.key ?: "—"
 
-        val (currentStreak, longestStreak) = computeStreaks(sessions.map { it.date })
+        val (currentStreak, longestStreak) = computeStreaks(sessionDates)
 
         return GlobalStats(
             totalSessions = totalSessions,

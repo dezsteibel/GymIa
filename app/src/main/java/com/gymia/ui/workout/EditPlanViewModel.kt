@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.gymia.data.model.Exercise
 import com.gymia.domain.model.DayExerciseInput
 import com.gymia.domain.model.DayInput
-import com.gymia.data.model.DayExercise
+import com.gymia.domain.model.ExerciseOrderUpdate
 import com.gymia.domain.usecase.GetExercisesUseCase
 import com.gymia.domain.usecase.UpdateExerciseOrderUseCase
 import com.gymia.domain.usecase.UpdateWorkoutPlanUseCase
@@ -164,10 +164,10 @@ class EditPlanViewModel @Inject constructor(
         if (exercises.any { it.dayExerciseId == 0L }) return
         viewModelScope.launch {
             try {
-                val entities = exercises.mapIndexed { index, de ->
-                    DayExercise(id = de.dayExerciseId, dayId = 0L, exerciseId = de.exercise.id, order = index, setsTarget = de.setsTarget)
+                val updates = exercises.mapIndexed { index, de ->
+                    ExerciseOrderUpdate(id = de.dayExerciseId, order = index)
                 }
-                updateExerciseOrderUseCase(entities)
+                updateExerciseOrderUseCase(updates)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)
             }

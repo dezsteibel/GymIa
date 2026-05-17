@@ -12,11 +12,12 @@ import kotlinx.serialization.json.Json
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import javax.inject.Named
 
 class ExportDataUseCase @Inject constructor(
-    private val repository: WorkoutRepository
+    private val repository: WorkoutRepository,
+    @Named("exportJson") private val json: Json
 ) {
-    private val json = Json { prettyPrint = true; encodeDefaults = true }
 
     suspend operator fun invoke(): String {
         val exportData = ExportData(
