@@ -60,6 +60,15 @@ interface SessionDao {
     """)
     fun getAllSetsWithDates(): Flow<List<SetWithDate>>
 
+    @Query("""
+        SELECT sr.exerciseId, sr.reps, sr.loadKg, ws.date, sr.sessionId
+        FROM set_records sr
+        INNER JOIN workout_sessions ws ON ws.id = sr.sessionId
+        WHERE sr.exerciseId = :exerciseId
+        ORDER BY ws.date ASC
+    """)
+    fun getLoadTrendForExercise(exerciseId: Long): Flow<List<SetWithDate>>
+
     @Query("DELETE FROM set_records WHERE sessionId = :sessionId")
     suspend fun deleteSetsForSession(sessionId: Long)
 
@@ -68,7 +77,7 @@ interface SessionDao {
 
     @Query("""
         SELECT sr.id, sr.sessionId, sr.exerciseId, sr.setNumber, sr.reps, sr.loadKg, sr.completed,
-               e.name as exerciseName
+               e.name as exerciseName, sr.notes
         FROM set_records sr
         INNER JOIN exercises e ON e.id = sr.exerciseId
         WHERE sr.sessionId = :sessionId

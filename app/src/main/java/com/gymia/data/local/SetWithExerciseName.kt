@@ -8,5 +8,6 @@ data class SetWithExerciseName(
     val reps: Int,
     val loadKg: Float,
     val completed: Boolean,
-    val exerciseName: String
+    val exerciseName: String,
+    val notes: String? = null
 )

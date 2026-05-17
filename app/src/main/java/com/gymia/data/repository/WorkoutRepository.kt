@@ -137,6 +137,11 @@ class WorkoutRepository @Inject constructor(
             list.map { DomainSetWithDate(it.exerciseId, it.reps, it.loadKg, it.date, it.sessionId) }
         }
 
+    fun getLoadTrendForExercise(exerciseId: Long): Flow<List<DomainSetWithDate>> =
+        sessionDao.getLoadTrendForExercise(exerciseId).map { list ->
+            list.map { DomainSetWithDate(it.exerciseId, it.reps, it.loadKg, it.date, it.sessionId) }
+        }
+
     fun getCardioHistory(): Flow<List<DomainCardioRecord>> =
         cardioDao.getAllRecords().map { list ->
             list.map { DomainCardioRecord(it.id, it.date, it.activityType, it.durationMinutes, it.distanceKm, it.notes) }
