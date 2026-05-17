@@ -120,7 +120,7 @@ fun CreatePlanScreen(
 }
 
 @Composable
-private fun DayCard(
+internal fun DayCard(
     dayIndex: Int,
     day: DraftDay,
     onLabelChange: (String) -> Unit,
@@ -161,7 +161,7 @@ private fun DayCard(
 }
 
 @Composable
-private fun DayExerciseRow(name: String, setsTarget: Int, onRemove: () -> Unit) {
+internal fun DayExerciseRow(name: String, setsTarget: Int, onRemove: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -176,7 +176,7 @@ private fun DayExerciseRow(name: String, setsTarget: Int, onRemove: () -> Unit) 
 }
 
 @Composable
-private fun ExercisePickerDialog(
+internal fun ExercisePickerDialog(
     exercises: List<Exercise>,
     searchQuery: String,
     onSearchChange: (String) -> Unit,

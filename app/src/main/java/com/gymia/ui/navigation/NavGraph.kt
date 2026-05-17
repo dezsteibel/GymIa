@@ -27,9 +27,11 @@ import androidx.navigation.navArgument
 import com.gymia.ui.ai.AiCycleScreen
 import com.gymia.ui.cardio.CardioScreen
 import com.gymia.ui.history.HistoryScreen
+import com.gymia.ui.history.SessionDetailScreen
 import com.gymia.ui.progress.ProgressScreen
 import com.gymia.ui.workout.ActiveSessionScreen
 import com.gymia.ui.workout.CreatePlanScreen
+import com.gymia.ui.workout.EditPlanScreen
 import com.gymia.ui.workout.ExerciseListScreen
 import com.gymia.ui.workout.WorkoutScreen
 
@@ -90,10 +92,15 @@ private fun AppNavHost(navController: NavHostController, modifier: Modifier = Mo
             WorkoutScreen(
                 onStartSession = { dayId -> navController.navigate("active_session/$dayId") },
                 onCreatePlan = { navController.navigate("create_plan") },
+                onEditPlan = { planId -> navController.navigate("edit_plan/$planId") },
                 onManageExercises = { navController.navigate("exercise_list") }
             )
         }
-        composable(Screen.History.route) { HistoryScreen() }
+        composable(Screen.History.route) {
+            HistoryScreen(
+                onOpenDetail = { sessionId -> navController.navigate("session_detail/$sessionId") }
+            )
+        }
         composable(Screen.Progress.route) { ProgressScreen() }
         composable(Screen.Cardio.route) { CardioScreen() }
         composable(Screen.AiCycle.route) {
@@ -118,10 +125,25 @@ private fun AppNavHost(navController: NavHostController, modifier: Modifier = Mo
             )
         }
         composable(
+            route = "edit_plan/{planId}",
+            arguments = listOf(navArgument("planId") { type = NavType.LongType })
+        ) {
+            EditPlanScreen(
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() }
+            )
+        }
+        composable(
             route = "active_session/{dayId}",
             arguments = listOf(navArgument("dayId") { type = NavType.LongType })
         ) {
             ActiveSessionScreen(onFinished = { navController.popBackStack() })
+        }
+        composable(
+            route = "session_detail/{sessionId}",
+            arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+        ) {
+            SessionDetailScreen(onBack = { navController.popBackStack() })
         }
     }
 }

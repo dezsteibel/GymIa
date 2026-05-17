@@ -60,4 +60,18 @@ interface WorkoutDao {
     @Transaction
     @Query("SELECT * FROM day_exercises WHERE dayId = :dayId ORDER BY `order` ASC")
     fun getExercisesWithDetailForDay(dayId: Long): Flow<List<DayExerciseWithDetail>>
+
+    @Transaction
+    @Query("SELECT * FROM day_exercises WHERE dayId = :dayId ORDER BY `order` ASC")
+    suspend fun getExercisesWithDetailForDayOnce(dayId: Long): List<DayExerciseWithDetail>
+
+    @Transaction
+    @Query("SELECT * FROM workout_plans WHERE id = :planId")
+    suspend fun getPlanWithDaysById(planId: Long): PlanWithDaysEntity?
+
+    @Query("DELETE FROM workout_plans WHERE id = :planId")
+    suspend fun deletePlanById(planId: Long)
+
+    @Query("DELETE FROM workout_days WHERE planId = :planId")
+    suspend fun deleteDaysForPlan(planId: Long)
 }

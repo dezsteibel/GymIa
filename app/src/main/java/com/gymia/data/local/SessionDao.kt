@@ -59,4 +59,20 @@ interface SessionDao {
         ORDER BY ws.date ASC
     """)
     fun getAllSetsWithDates(): Flow<List<SetWithDate>>
+
+    @Query("DELETE FROM set_records WHERE sessionId = :sessionId")
+    suspend fun deleteSetsForSession(sessionId: Long)
+
+    @Query("DELETE FROM workout_sessions WHERE id = :sessionId")
+    suspend fun deleteSessionById(sessionId: Long)
+
+    @Query("""
+        SELECT sr.id, sr.sessionId, sr.exerciseId, sr.setNumber, sr.reps, sr.loadKg, sr.completed,
+               e.name as exerciseName
+        FROM set_records sr
+        INNER JOIN exercises e ON e.id = sr.exerciseId
+        WHERE sr.sessionId = :sessionId
+        ORDER BY sr.exerciseId ASC, sr.setNumber ASC
+    """)
+    suspend fun getSetsWithExerciseNames(sessionId: Long): List<SetWithExerciseName>
 }
