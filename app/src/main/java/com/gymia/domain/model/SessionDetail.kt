@@ -6,9 +6,15 @@ data class SessionDetail(
     val dayLabel: String?,
     val date: Long,
     val durationMinutes: Int,
-    val exercises: List<ExerciseWithSets>,
+    val exercises: List<ExerciseWithSets>
+) {
     val totalVolume: Float
-)
+        get() = exercises
+            .flatMap { it.sets }
+            .filter { it.completed }
+            .sumOf { (it.reps * it.loadKg).toDouble() }
+            .toFloat()
+}
 
 data class ExerciseWithSets(
     val exerciseName: String,

@@ -10,6 +10,7 @@ import com.gymia.data.local.WorkoutDao
 import com.gymia.domain.model.ExerciseWithSets
 import com.gymia.domain.model.SessionDetail
 import com.gymia.domain.model.SetDetail
+
 import com.gymia.data.model.CardioRecord
 import com.gymia.data.model.DayExercise
 import com.gymia.data.model.Exercise
@@ -225,18 +226,13 @@ class WorkoutRepository @Inject constructor(
                 sets = sets.map { SetDetail(it.setNumber, it.reps, it.loadKg, it.completed) }
             )
         }
-        val totalVolume = setsWithNames
-            .filter { it.completed }
-            .sumOf { (it.reps * it.loadKg).toDouble() }
-            .toFloat()
         return SessionDetail(
             sessionId = session.id,
             planName = planName,
             dayLabel = dayLabel,
             date = session.date,
             durationMinutes = session.durationMinutes,
-            exercises = exercises,
-            totalVolume = totalVolume
+            exercises = exercises
         )
     }
 
