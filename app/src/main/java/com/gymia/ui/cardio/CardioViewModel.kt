@@ -3,8 +3,10 @@ package com.gymia.ui.cardio
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymia.domain.model.DomainCardioRecord
+import com.gymia.domain.usecase.DeleteCardioUseCase
 import com.gymia.domain.usecase.GetCardioHistoryUseCase
 import com.gymia.domain.usecase.SaveCardioUseCase
+import com.gymia.domain.usecase.UpdateCardioUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class CardioViewModel @Inject constructor(
     private val saveCardioUseCase: SaveCardioUseCase,
+    private val updateCardioUseCase: UpdateCardioUseCase,
+    private val deleteCardioUseCase: DeleteCardioUseCase,
     private val getCardioHistoryUseCase: GetCardioHistoryUseCase
 ) : ViewModel() {
 
@@ -26,6 +30,8 @@ class CardioViewModel @Inject constructor(
         data class Ready(
             val history: List<DomainCardioRecord>,
             val showForm: Boolean = false,
+            val editingRecord: DomainCardioRecord? = null,
+            val recordToDelete: DomainCardioRecord? = null,
             val activityType: String = ActivityType.RUN,
             val durationInput: String = "",
             val distanceInput: String = "",
@@ -65,13 +71,26 @@ class CardioViewModel @Inject constructor(
 
     fun showForm() {
         val current = _uiState.value as? UiState.Ready ?: return
-        _uiState.value = current.copy(showForm = true)
+        _uiState.value = current.copy(showForm = true, editingRecord = null)
+    }
+
+    fun showEditForm(record: DomainCardioRecord) {
+        val current = _uiState.value as? UiState.Ready ?: return
+        _uiState.value = current.copy(
+            showForm = true,
+            editingRecord = record,
+            activityType = record.activityType,
+            durationInput = record.durationMinutes.toString(),
+            distanceInput = record.distanceKm?.toString() ?: "",
+            notesInput = record.notes ?: ""
+        )
     }
 
     fun hideForm() {
         val current = _uiState.value as? UiState.Ready ?: return
         _uiState.value = current.copy(
             showForm = false,
+            editingRecord = null,
             activityType = ActivityType.RUN,
             durationInput = "",
             distanceInput = "",
@@ -102,30 +121,62 @@ class CardioViewModel @Inject constructor(
     fun saveRecord() {
         val current = _uiState.value as? UiState.Ready ?: return
         val duration = current.durationInput.toIntOrNull() ?: return
+        val record = buildRecordFromForm(current, duration)
         viewModelScope.launch {
             _uiState.value = current.copy(isSaving = true)
             try {
-                saveCardioUseCase(
-                    DomainCardioRecord(
-                        id = 0,
-                        date = System.currentTimeMillis(),
-                        activityType = current.activityType,
-                        durationMinutes = duration,
-                        distanceKm = current.distanceInput.toFloatOrNull(),
-                        notes = current.notesInput.ifBlank { null }
-                    )
-                )
-                _uiState.value = current.copy(
-                    isSaving = false,
-                    showForm = false,
-                    activityType = ActivityType.RUN,
-                    durationInput = "",
-                    distanceInput = "",
-                    notesInput = ""
-                )
+                if (current.editingRecord != null) updateCardioUseCase(record)
+                else saveCardioUseCase(record)
+                clearFormOnSuccess()
             } catch (e: Exception) {
-                _uiState.value = current.copy(isSaving = false)
+                (_uiState.value as? UiState.Ready)?.let { _uiState.value = it.copy(isSaving = false) }
             }
+        }
+    }
+
+    fun requestDeleteRecord(record: DomainCardioRecord) {
+        val current = _uiState.value as? UiState.Ready ?: return
+        _uiState.value = current.copy(recordToDelete = record)
+    }
+
+    fun cancelDelete() {
+        val current = _uiState.value as? UiState.Ready ?: return
+        _uiState.value = current.copy(recordToDelete = null)
+    }
+
+    fun confirmDelete() {
+        val current = _uiState.value as? UiState.Ready ?: return
+        val record = current.recordToDelete ?: return
+        viewModelScope.launch {
+            try {
+                deleteCardioUseCase(record)
+            } finally {
+                (_uiState.value as? UiState.Ready)?.let { _uiState.value = it.copy(recordToDelete = null) }
+            }
+        }
+    }
+
+    private fun buildRecordFromForm(current: UiState.Ready, duration: Int): DomainCardioRecord =
+        DomainCardioRecord(
+            id = current.editingRecord?.id ?: 0,
+            date = current.editingRecord?.date ?: System.currentTimeMillis(),
+            activityType = current.activityType,
+            durationMinutes = duration,
+            distanceKm = current.distanceInput.toFloatOrNull(),
+            notes = current.notesInput.ifBlank { null }
+        )
+
+    private fun clearFormOnSuccess() {
+        (_uiState.value as? UiState.Ready)?.let { ready ->
+            _uiState.value = ready.copy(
+                isSaving = false,
+                showForm = false,
+                editingRecord = null,
+                activityType = ActivityType.RUN,
+                durationInput = "",
+                distanceInput = "",
+                notesInput = ""
+            )
         }
     }
 }

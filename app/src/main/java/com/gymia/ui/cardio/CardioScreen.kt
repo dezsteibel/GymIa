@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -22,6 +24,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -43,6 +46,7 @@ import java.util.Locale
 
 private const val CARD_PADDING_DP = 16
 private const val ITEM_SPACING_DP = 8
+private const val DELETE_ICON_SIZE_DP = 20
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,16 +66,28 @@ fun CardioScreen(viewModel: CardioViewModel = hiltViewModel()) {
         when (val state = uiState) {
             is CardioViewModel.UiState.Loading -> LoadingContent(Modifier.padding(padding))
             is CardioViewModel.UiState.Ready -> {
-                ReadyContent(state = state, modifier = Modifier.padding(padding))
+                ReadyContent(
+                    state = state,
+                    modifier = Modifier.padding(padding),
+                    onCardClick = viewModel::showEditForm,
+                    onDeleteClick = viewModel::requestDeleteRecord
+                )
                 if (state.showForm) {
                     CardioFormDialog(
                         state = state,
+                        isEditing = state.editingRecord != null,
                         onActivityType = viewModel::updateActivityType,
                         onDuration = viewModel::updateDuration,
                         onDistance = viewModel::updateDistance,
                         onNotes = viewModel::updateNotes,
                         onSave = viewModel::saveRecord,
                         onDismiss = viewModel::hideForm
+                    )
+                }
+                if (state.recordToDelete != null) {
+                    DeleteConfirmDialog(
+                        onConfirm = viewModel::confirmDelete,
+                        onDismiss = viewModel::cancelDelete
                     )
                 }
             }
@@ -95,7 +111,12 @@ private fun ErrorContent(message: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ReadyContent(state: CardioViewModel.UiState.Ready, modifier: Modifier = Modifier) {
+private fun ReadyContent(
+    state: CardioViewModel.UiState.Ready,
+    modifier: Modifier = Modifier,
+    onCardClick: (DomainCardioRecord) -> Unit,
+    onDeleteClick: (DomainCardioRecord) -> Unit
+) {
     if (state.history.isEmpty()) {
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No cardio logged yet.", style = MaterialTheme.typography.bodyMedium)
@@ -107,30 +128,46 @@ private fun ReadyContent(state: CardioViewModel.UiState.Ready, modifier: Modifie
             verticalArrangement = Arrangement.spacedBy(ITEM_SPACING_DP.dp)
         ) {
             items(state.history, key = { it.id }) { record ->
-                CardioRecordCard(record = record)
+                CardioRecordCard(
+                    record = record,
+                    onEditClick = { onCardClick(record) },
+                    onDeleteClick = { onDeleteClick(record) }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun CardioRecordCard(record: DomainCardioRecord) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun CardioRecordCard(
+    record: DomainCardioRecord,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth(), onClick = onEditClick) {
         Column(modifier = Modifier.padding(CARD_PADDING_DP.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = record.activityType.replaceFirstChar { it.uppercaseChar() },
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = formatDate(record.date),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                IconButton(onClick = onDeleteClick, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete cardio record",
+                        modifier = Modifier.size(DELETE_ICON_SIZE_DP.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             Spacer(Modifier.height(4.dp))
             val detail = buildString {
@@ -147,8 +184,27 @@ private fun CardioRecordCard(record: DomainCardioRecord) {
 }
 
 @Composable
+private fun DeleteConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete Record") },
+        text = { Text("Are you sure you want to delete this cardio record?") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("Delete") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
 private fun CardioFormDialog(
     state: CardioViewModel.UiState.Ready,
+    isEditing: Boolean,
     onActivityType: (String) -> Unit,
     onDuration: (String) -> Unit,
     onDistance: (String) -> Unit,
@@ -158,7 +214,7 @@ private fun CardioFormDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Log Cardio") },
+        title = { Text(if (isEditing) "Edit Cardio" else "Log Cardio") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(ITEM_SPACING_DP.dp)) {
                 ActivityTypeSelector(
