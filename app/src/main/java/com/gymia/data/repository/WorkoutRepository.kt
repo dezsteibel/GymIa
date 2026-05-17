@@ -145,6 +145,12 @@ class WorkoutRepository @Inject constructor(
     suspend fun saveCardioRecord(record: DomainCardioRecord): Long =
         cardioDao.insert(CardioRecord(record.id, record.date, record.activityType, record.durationMinutes, record.distanceKm, record.notes))
 
+    suspend fun updateCardioRecord(record: DomainCardioRecord) =
+        cardioDao.update(CardioRecord(record.id, record.date, record.activityType, record.durationMinutes, record.distanceKm, record.notes))
+
+    suspend fun deleteCardioRecord(record: DomainCardioRecord) =
+        cardioDao.delete(CardioRecord(record.id, record.date, record.activityType, record.durationMinutes, record.distanceKm, record.notes))
+
     suspend fun saveAiCycle(cycle: WorkoutCycle): Long = database.withTransaction {
         val planId = workoutDao.insertPlan(WorkoutPlan(name = cycle.cycleName, source = "ai_generated"))
         cycle.days.forEachIndexed { dayIndex, day ->
