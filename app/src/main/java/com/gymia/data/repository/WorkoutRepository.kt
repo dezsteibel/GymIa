@@ -7,6 +7,9 @@ import com.gymia.data.local.ExerciseDao
 import com.gymia.data.local.SessionDao
 import com.gymia.data.local.SetWithDate
 import com.gymia.data.local.WorkoutDao
+import com.gymia.domain.model.ExerciseWithSets
+import com.gymia.domain.model.SessionDetail
+import com.gymia.domain.model.SetDetail
 import com.gymia.data.model.CardioRecord
 import com.gymia.data.model.DayExercise
 import com.gymia.data.model.Exercise
@@ -151,6 +154,90 @@ class WorkoutRepository @Inject constructor(
             }
         }
         planId
+    }
+
+    suspend fun deletePlanWithCascade(planId: Long) {
+        database.withTransaction {
+            val days = workoutDao.getPlanWithDaysById(planId)?.days ?: emptyList()
+            days.forEach { day -> workoutDao.clearDayExercises(day.id) }
+            workoutDao.deleteDaysForPlan(planId)
+            workoutDao.deletePlanById(planId)
+        }
+    }
+
+    suspend fun getPlanWithDaysOnce(planId: Long): PlanWithDays? {
+        val entity = workoutDao.getPlanWithDaysById(planId) ?: return null
+        return PlanWithDays(
+            plan = DomainWorkoutPlan(entity.plan.id, entity.plan.name, entity.plan.createdAt, entity.plan.source),
+            days = entity.days.map { DomainWorkoutDay(it.id, it.planId, it.label, it.order) }
+        )
+    }
+
+    suspend fun getDayExercisesOnce(dayId: Long): List<ExerciseForDay> =
+        workoutDao.getExercisesWithDetailForDayOnce(dayId).map { entity ->
+            ExerciseForDay(
+                dayExerciseId = entity.dayExercise.id,
+                exercise = DomainExercise(
+                    id = entity.exercise.id,
+                    name = entity.exercise.name,
+                    muscleGroup = entity.exercise.muscleGroup,
+                    equipmentType = entity.exercise.equipmentType
+                ),
+                setsTarget = entity.dayExercise.setsTarget,
+                order = entity.dayExercise.order
+            )
+        }
+
+    suspend fun updateFullPlan(planId: Long, name: String, days: List<DayInput>) {
+        database.withTransaction {
+            val existingDays = workoutDao.getPlanWithDaysById(planId)?.days ?: emptyList()
+            existingDays.forEach { day -> workoutDao.clearDayExercises(day.id) }
+            workoutDao.deleteDaysForPlan(planId)
+            val existingPlan = workoutDao.getPlanById(planId) ?: return@withTransaction
+            workoutDao.updatePlan(existingPlan.copy(name = name))
+            days.forEachIndexed { index, dayInput ->
+                val dayId = workoutDao.insertDay(WorkoutDay(planId = planId, label = dayInput.label, order = index))
+                dayInput.exercises.forEachIndexed { exIndex, exInput ->
+                    workoutDao.insertDayExercise(
+                        DayExercise(dayId = dayId, exerciseId = exInput.exerciseId, order = exIndex, setsTarget = exInput.setsTarget)
+                    )
+                }
+            }
+        }
+    }
+
+    suspend fun deleteSessionWithSets(sessionId: Long) {
+        database.withTransaction {
+            sessionDao.deleteSetsForSession(sessionId)
+            sessionDao.deleteSessionById(sessionId)
+        }
+    }
+
+    suspend fun getSessionDetail(sessionId: Long): SessionDetail? {
+        val session = sessionDao.getSessionById(sessionId) ?: return null
+        val planName = session.planId?.let { workoutDao.getPlanById(it)?.name }
+        val dayLabel = session.dayId?.let { workoutDao.getDayById(it)?.label }
+        val setsWithNames = sessionDao.getSetsWithExerciseNames(sessionId)
+        val exercisesMap = setsWithNames.groupBy { it.exerciseId }
+        val exercises = exercisesMap.map { (_, sets) ->
+            ExerciseWithSets(
+                exerciseName = sets.first().exerciseName,
+                sets = sets.map { SetDetail(it.setNumber, it.reps, it.loadKg, it.completed) }
+            )
+        }
+        val totalVolume = setsWithNames
+            .filter { it.completed }
+            .sumOf { (it.reps * it.loadKg).toDouble() }
+            .toFloat()
+        return SessionDetail(
+            sessionId = session.id,
+            planName = planName,
+            dayLabel = dayLabel,
+            date = session.date,
+            durationMinutes = session.durationMinutes,
+            exercises = exercises,
+            totalVolume = totalVolume
+        )
     }
 
     private suspend fun findOrCreateExercise(exercise: CycleExercise): Long {
