@@ -44,6 +44,7 @@ import com.gymia.domain.model.WorkoutCycle
 @Composable
 fun AiCycleScreen(
     onAccept: () -> Unit,
+    onCompare: () -> Unit,
     viewModel: AiCycleViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -53,7 +54,7 @@ fun AiCycleScreen(
     }
 
     when (val state = uiState) {
-        is AiCycleViewModel.UiState.Idle -> IdleContent(onGenerate = viewModel::generateCycle)
+        is AiCycleViewModel.UiState.Idle -> IdleContent(onGenerate = viewModel::generateCycle, onCompare = onCompare)
         is AiCycleViewModel.UiState.Loading -> LoadingContent()
         is AiCycleViewModel.UiState.Success -> SuccessContent(
             cycle = state.cycle,
@@ -68,7 +69,7 @@ fun AiCycleScreen(
 }
 
 @Composable
-private fun IdleContent(onGenerate: () -> Unit) {
+private fun IdleContent(onGenerate: () -> Unit, onCompare: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -88,6 +89,9 @@ private fun IdleContent(onGenerate: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = onGenerate, modifier = Modifier.fillMaxWidth()) {
                 Text("Generate My Next Cycle")
+            }
+            OutlinedButton(onClick = onCompare, modifier = Modifier.fillMaxWidth()) {
+                Text("Compare Cycles")
             }
         }
     }

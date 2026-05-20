@@ -11,6 +11,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,11 +34,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
@@ -61,6 +68,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
@@ -76,8 +86,13 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.gymia.domain.model.LoadSuggestion
+import com.gymia.domain.model.SetType
 import com.gymia.domain.model.Trend
+import com.gymia.domain.model.WarmUpSet
 import com.gymia.ui.components.RestTimerBar
+
+private const val COMPLETED_SET_ALPHA = 0.4f
+private val LEFT_BORDER_WIDTH = 4.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -215,6 +230,13 @@ private fun PortraitSessionContent(
                 onAddSet = viewModel::addSet,
                 onSuggestionTap = viewModel::onSuggestionTap,
                 onNotesClick = viewModel::openNotesDialog,
+                onMarkAsSuperset = viewModel::markAsSuperset,
+                onMarkAsDropSet = viewModel::markAsDropSet,
+                onResetSetType = viewModel::resetSetType,
+                warmUpSets = uiState.warmUpSets,
+                onToggleWarmUp = viewModel::toggleWarmUpExpanded,
+                onToggleWarmUpSet = viewModel::toggleWarmUpSet,
+                onSkipWarmUp = viewModel::skipWarmUp,
                 modifier = Modifier.padding(padding)
             )
         }
@@ -289,6 +311,14 @@ private fun LandscapeSessionContent(
                             onAddSet = { viewModel.addSet(selectedExerciseIndex) },
                             onSuggestionTap = { setIndex -> viewModel.onSuggestionTap(selectedExerciseIndex, setIndex) },
                             onNotesClick = { setIndex -> viewModel.openNotesDialog(selectedExerciseIndex, setIndex) },
+                            onMarkAsSuperset = { setIndex -> viewModel.markAsSuperset(selectedExerciseIndex, setIndex) },
+                            onMarkAsDropSet = { setIndex -> viewModel.markAsDropSet(selectedExerciseIndex, setIndex) },
+                            onResetSetType = { setIndex -> viewModel.resetSetType(selectedExerciseIndex, setIndex) },
+                            warmUpSets = uiState.warmUpSets[exerciseState.exercise.id] ?: emptyList(),
+                            warmUpExpanded = exerciseState.warmUpExpanded,
+                            onToggleWarmUp = { viewModel.toggleWarmUpExpanded(selectedExerciseIndex) },
+                            onToggleWarmUpSet = { setIndex -> viewModel.toggleWarmUpSet(exerciseState.exercise.id, setIndex) },
+                            onSkipWarmUp = { viewModel.skipWarmUp(exerciseState.exercise.id) },
                             modifier = Modifier
                                 .weight(1f)
                                 .padding(8.dp)
@@ -371,6 +401,13 @@ private fun ExerciseList(
     onAddSet: (Int) -> Unit,
     onSuggestionTap: (Int, Int) -> Unit,
     onNotesClick: (Int, Int) -> Unit,
+    onMarkAsSuperset: (Int, Int) -> Unit,
+    onMarkAsDropSet: (Int, Int) -> Unit,
+    onResetSetType: (Int, Int) -> Unit,
+    warmUpSets: Map<Long, List<WarmUpSet>> = emptyMap(),
+    onToggleWarmUp: (Int) -> Unit = {},
+    onToggleWarmUpSet: (Long, Int) -> Unit = { _, _ -> },
+    onSkipWarmUp: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LazyColumn(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -384,10 +421,84 @@ private fun ExerciseList(
                 onAddSet = { onAddSet(exerciseIndex) },
                 onSuggestionTap = { setIndex -> onSuggestionTap(exerciseIndex, setIndex) },
                 onNotesClick = { setIndex -> onNotesClick(exerciseIndex, setIndex) },
+                onMarkAsSuperset = { setIndex -> onMarkAsSuperset(exerciseIndex, setIndex) },
+                onMarkAsDropSet = { setIndex -> onMarkAsDropSet(exerciseIndex, setIndex) },
+                onResetSetType = { setIndex -> onResetSetType(exerciseIndex, setIndex) },
+                warmUpSets = warmUpSets[exerciseState.exercise.id] ?: emptyList(),
+                warmUpExpanded = exerciseState.warmUpExpanded,
+                onToggleWarmUp = { onToggleWarmUp(exerciseIndex) },
+                onToggleWarmUpSet = { setIndex -> onToggleWarmUpSet(exerciseState.exercise.id, setIndex) },
+                onSkipWarmUp = { onSkipWarmUp(exerciseState.exercise.id) },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
         item { Spacer(Modifier.height(16.dp)) }
+    }
+}
+
+@Composable
+private fun WarmUpSection(
+    warmUpSets: List<WarmUpSet>,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onToggleSet: (Int) -> Unit,
+    onSkip: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        WarmUpSectionHeader(expanded = expanded, onToggleExpanded = onToggleExpanded, onSkip = onSkip)
+        if (expanded) {
+            warmUpSets.forEachIndexed { index, set ->
+                WarmUpSetRow(set = set, onToggle = { onToggleSet(index) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun WarmUpSectionHeader(
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onSkip: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "Warm-up",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onSkip) { Text("Skip") }
+            IconButton(onClick = onToggleExpanded) {
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Collapse warm-up" else "Expand warm-up"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WarmUpSetRow(set: WarmUpSet, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+            .then(if (set.completed) Modifier.alpha(COMPLETED_SET_ALPHA) else Modifier),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = set.completed,
+            onCheckedChange = { onToggle() }
+        )
+        Text(
+            text = "Set ${set.setNumber} — ${(set.percentage * 100).toInt()}% — ${set.suggestedLoadKg}kg × ${set.reps}",
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 
@@ -400,6 +511,14 @@ private fun ExerciseCard(
     onAddSet: () -> Unit,
     onSuggestionTap: (Int) -> Unit,
     onNotesClick: (Int) -> Unit,
+    onMarkAsSuperset: (Int) -> Unit,
+    onMarkAsDropSet: (Int) -> Unit,
+    onResetSetType: (Int) -> Unit,
+    warmUpSets: List<WarmUpSet> = emptyList(),
+    warmUpExpanded: Boolean = false,
+    onToggleWarmUp: () -> Unit = {},
+    onToggleWarmUpSet: (Int) -> Unit = {},
+    onSkipWarmUp: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -418,6 +537,16 @@ private fun ExerciseCard(
                 onSuggestionTap = { onSuggestionTap(0) }
             )
             Spacer(Modifier.height(8.dp))
+            if (warmUpSets.isNotEmpty()) {
+                WarmUpSection(
+                    warmUpSets = warmUpSets,
+                    expanded = warmUpExpanded,
+                    onToggleExpanded = onToggleWarmUp,
+                    onToggleSet = onToggleWarmUpSet,
+                    onSkip = onSkipWarmUp
+                )
+                Spacer(Modifier.height(4.dp))
+            }
             exerciseState.loggedSets.forEachIndexed { setIndex, setEntry ->
                 SetRow(
                     setEntry = setEntry,
@@ -427,7 +556,11 @@ private fun ExerciseCard(
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onConfirmSet(setIndex)
                     },
-                    onNotesClick = { onNotesClick(setIndex) }
+                    onNotesClick = { onNotesClick(setIndex) },
+                    setType = setEntry.setType,
+                    onMarkAsSuperset = { onMarkAsSuperset(setIndex) },
+                    onMarkAsDropSet = { onMarkAsDropSet(setIndex) },
+                    onResetSetType = { onResetSetType(setIndex) }
                 )
                 if (setIndex < exerciseState.loggedSets.lastIndex) HorizontalDivider()
             }
@@ -490,65 +623,109 @@ private fun ExerciseCardHeader(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SetRow(
     setEntry: SetEntry,
     onRepsChange: (String) -> Unit,
     onLoadChange: (String) -> Unit,
     onConfirm: () -> Unit,
-    onNotesClick: () -> Unit
+    onNotesClick: () -> Unit,
+    setType: SetType = SetType.NORMAL,
+    onMarkAsSuperset: () -> Unit = {},
+    onMarkAsDropSet: () -> Unit = {},
+    onResetSetType: () -> Unit = {}
 ) {
     val rowBackground = when {
         setEntry.isConfirmed -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
         else -> Color.Transparent
     }
+    val leftBorderColor = setTypeBorderColor(setType)
+    var showContextMenu by remember { mutableStateOf(false) }
 
     Column {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(rowBackground, MaterialTheme.shapes.small)
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .combinedClickable(
+                    onLongClick = { showContextMenu = true },
+                    onClick = {}
+                )
         ) {
-            Text(
-                text = "${setEntry.setNumber}",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.width(24.dp)
-            )
-            OutlinedTextField(
-                value = setEntry.reps,
-                onValueChange = onRepsChange,
-                label = { Text("Reps") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f),
-                enabled = !setEntry.isConfirmed,
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = setEntry.loadKg,
-                onValueChange = onLoadChange,
-                label = { Text("kg") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(1f),
-                enabled = !setEntry.isConfirmed,
-                singleLine = true
-            )
-            if (setEntry.isConfirmed) {
-                Icon(Icons.Default.Check, contentDescription = "Confirmed", tint = MaterialTheme.colorScheme.primary)
-            } else {
-                FilledTonalIconButton(onClick = onConfirm) {
-                    Icon(Icons.Default.Check, contentDescription = "Confirm Set")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(rowBackground, MaterialTheme.shapes.small)
+                    .drawBehind {
+                        if (leftBorderColor != Color.Transparent) {
+                            drawLine(
+                                color = leftBorderColor,
+                                start = Offset(0f, 0f),
+                                end = Offset(0f, size.height),
+                                strokeWidth = LEFT_BORDER_WIDTH.toPx()
+                            )
+                        }
+                    }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "${setEntry.setNumber}",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.width(24.dp)
+                )
+                SetTypeBadge(setType = setType)
+                OutlinedTextField(
+                    value = setEntry.reps,
+                    onValueChange = onRepsChange,
+                    label = { Text("Reps") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    enabled = !setEntry.isConfirmed,
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = setEntry.loadKg,
+                    onValueChange = onLoadChange,
+                    label = { Text("kg") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f),
+                    enabled = !setEntry.isConfirmed,
+                    singleLine = true
+                )
+                if (setEntry.isConfirmed) {
+                    Icon(Icons.Default.Check, contentDescription = "Confirmed", tint = MaterialTheme.colorScheme.primary)
+                } else {
+                    FilledTonalIconButton(onClick = onConfirm) {
+                        Icon(Icons.Default.Check, contentDescription = "Confirm Set")
+                    }
+                }
+                IconButton(onClick = onNotesClick, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Notes",
+                        tint = if (setEntry.notes.isNotBlank()) MaterialTheme.colorScheme.primary
+                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
-            IconButton(onClick = onNotesClick, modifier = Modifier.size(40.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Notes",
-                    tint = if (setEntry.notes.isNotBlank()) MaterialTheme.colorScheme.primary
-                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(18.dp)
+            DropdownMenu(
+                expanded = showContextMenu,
+                onDismissRequest = { showContextMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Mark as Superset") },
+                    onClick = { onMarkAsSuperset(); showContextMenu = false }
+                )
+                DropdownMenuItem(
+                    text = { Text("Mark as Drop Set") },
+                    onClick = { onMarkAsDropSet(); showContextMenu = false }
+                )
+                DropdownMenuItem(
+                    text = { Text("Normal Set") },
+                    onClick = { onResetSetType(); showContextMenu = false }
                 )
             }
         }
@@ -562,6 +739,34 @@ private fun SetRow(
             )
         }
     }
+}
+
+@Composable
+private fun SetTypeBadge(setType: SetType) {
+    when (setType) {
+        SetType.SUPERSET -> Text(
+            text = "SS",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.Blue,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(24.dp)
+        )
+        SetType.DROP_SET -> Text(
+            text = "DS",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFFFF6600),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(24.dp)
+        )
+        SetType.NORMAL -> Spacer(modifier = Modifier.width(24.dp))
+    }
+}
+
+@Composable
+private fun setTypeBorderColor(setType: SetType): Color = when (setType) {
+    SetType.SUPERSET -> Color.Blue
+    SetType.DROP_SET -> Color(0xFFFF6600)
+    SetType.NORMAL -> Color.Transparent
 }
 
 private fun formatElapsed(seconds: Int): String {
