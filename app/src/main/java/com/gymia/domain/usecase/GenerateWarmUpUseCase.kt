@@ -2,6 +2,7 @@ package com.gymia.domain.usecase
 
 import com.gymia.domain.model.WarmUpProtocol
 import com.gymia.domain.model.WarmUpSet
+import kotlin.math.roundToInt
 import javax.inject.Inject
 
 class GenerateWarmUpUseCase @Inject constructor() {
@@ -18,5 +19,5 @@ class GenerateWarmUpUseCase @Inject constructor() {
             }
 
     private fun roundToNearest2Point5(value: Float): Float =
-        (Math.round(value / 2.5f) * 2.5f)
+        ((value / 2.5f).roundToInt() * 2.5f)
 }

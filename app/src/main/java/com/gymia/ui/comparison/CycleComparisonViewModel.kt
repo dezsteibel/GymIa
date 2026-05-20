@@ -26,10 +26,10 @@ class CycleComparisonViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { getCycleComparisonUseCase() }
                 .onSuccess { comparison ->
-                    _uiState.value = if (comparison.previousCycle == null) {
-                        CycleComparisonUiState.Empty
-                    } else {
+                    _uiState.value = if (comparison?.previousCycle != null) {
                         CycleComparisonUiState.Success(comparison)
+                    } else {
+                        CycleComparisonUiState.Empty
                     }
                 }
                 .onFailure { error ->

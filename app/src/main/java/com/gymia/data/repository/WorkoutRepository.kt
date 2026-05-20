@@ -24,6 +24,7 @@ import com.gymia.domain.model.DayInput
 import com.gymia.domain.model.DomainCardioRecord
 import com.gymia.domain.model.DomainExercise
 import com.gymia.domain.model.DomainSetWithDate
+import com.gymia.domain.model.DomainSetWithExercise
 import com.gymia.domain.model.DomainWorkoutDay
 import com.gymia.domain.model.DomainWorkoutPlan
 import com.gymia.domain.model.ExerciseForDay
@@ -287,4 +288,20 @@ class WorkoutRepository @Inject constructor(
         if (existing != null) return existing.id
         return exerciseDao.insert(Exercise(name = name, muscleGroup = muscleGroup, equipmentType = equipmentType))
     }
+
+    suspend fun getAiGeneratedPlans(): List<DomainWorkoutPlan> =
+        workoutDao.getAiGeneratedPlans().map { DomainWorkoutPlan(it.id, it.name, it.createdAt, it.source) }
+
+    suspend fun getSetsWithNamesForSession(sessionId: Long): List<DomainSetWithExercise> =
+        sessionDao.getSetsWithExerciseNames(sessionId).map {
+            DomainSetWithExercise(
+                exerciseName = it.exerciseName,
+                reps = it.reps,
+                loadKg = it.loadKg,
+                sessionId = it.sessionId
+            )
+        }
+
+    suspend fun getSessionIdsAndDatesForPlan(planId: Long): List<Pair<Long, Long>> =
+        sessionDao.getSessionsForPlan(planId).map { it.id to it.date }
 }

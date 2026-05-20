@@ -1,21 +1,19 @@
 package com.gymia.domain.usecase
 
-import com.gymia.data.local.SessionDao
-import com.gymia.data.local.SetWithExerciseName
-import com.gymia.data.local.WorkoutDao
-import com.gymia.data.model.WorkoutPlan
-import com.gymia.data.model.WorkoutSession
+import com.gymia.data.repository.WorkoutRepository
 import com.gymia.domain.model.CycleComparison
 import com.gymia.domain.model.CycleStats
+import com.gymia.domain.model.DomainSetWithExercise
+import com.gymia.domain.model.DomainWorkoutPlan
 import com.gymia.domain.model.ExerciseStats
 import javax.inject.Inject
 
 class GetCycleComparisonUseCase @Inject constructor(
-    private val workoutDao: WorkoutDao,
-    private val sessionDao: SessionDao
+    private val repository: WorkoutRepository
 ) {
-    suspend operator fun invoke(): CycleComparison {
-        val plans = workoutDao.getAiGeneratedPlans().take(MAX_PLANS_COMPARED)
+    suspend operator fun invoke(): CycleComparison? {
+        val plans = repository.getAiGeneratedPlans().take(MAX_PLANS_COMPARED)
+        if (plans.isEmpty()) return null
         val current = buildCycleStats(plans[0])
         val previous = if (plans.size >= MIN_PLANS_FOR_COMPARISON) buildCycleStats(plans[1]) else null
         return CycleComparison(
@@ -28,14 +26,14 @@ class GetCycleComparisonUseCase @Inject constructor(
         )
     }
 
-    private suspend fun buildCycleStats(plan: WorkoutPlan): CycleStats {
-        val sessions = sessionDao.getSessionsForPlan(plan.id)
-        val allSets = fetchAllSetsWithNames(sessions)
+    private suspend fun buildCycleStats(plan: DomainWorkoutPlan): CycleStats {
+        val sessions = repository.getSessionIdsAndDatesForPlan(plan.id)
+        val allSets = sessions.flatMap { (sessionId, _) -> repository.getSetsWithNamesForSession(sessionId) }
         val exerciseStats = buildExerciseStats(allSets)
         return CycleStats(
             planName = plan.name,
-            startDate = sessions.minOfOrNull { it.date } ?: plan.createdAt,
-            endDate = sessions.maxOfOrNull { it.date } ?: plan.createdAt,
+            startDate = sessions.minOfOrNull { it.second } ?: plan.createdAt,
+            endDate = sessions.maxOfOrNull { it.second } ?: plan.createdAt,
             totalSessions = sessions.size,
             totalVolumeKg = computeTotalVolume(allSets),
             averageLoadKg = computeAverageLoad(allSets),
@@ -43,10 +41,7 @@ class GetCycleComparisonUseCase @Inject constructor(
         )
     }
 
-    private suspend fun fetchAllSetsWithNames(sessions: List<WorkoutSession>): List<SetWithExerciseName> =
-        sessions.flatMap { session -> sessionDao.getSetsWithExerciseNames(session.id) }
-
-    private fun buildExerciseStats(sets: List<SetWithExerciseName>): List<ExerciseStats> =
+    private fun buildExerciseStats(sets: List<DomainSetWithExercise>): List<ExerciseStats> =
         sets.groupBy { it.exerciseName }.map { (name, exerciseSets) ->
             ExerciseStats(
                 exerciseName = name,
@@ -56,10 +51,10 @@ class GetCycleComparisonUseCase @Inject constructor(
             )
         }
 
-    private fun computeTotalVolume(sets: List<SetWithExerciseName>): Float =
+    private fun computeTotalVolume(sets: List<DomainSetWithExercise>): Float =
         sets.sumOf { (it.reps * it.loadKg).toDouble() }.toFloat()
 
-    private fun computeAverageLoad(sets: List<SetWithExerciseName>): Float =
+    private fun computeAverageLoad(sets: List<DomainSetWithExercise>): Float =
         if (sets.isEmpty()) 0f else sets.map { it.loadKg }.average().toFloat()
 
     private fun computeVolumeDelta(current: CycleStats, previous: CycleStats?): Float {
