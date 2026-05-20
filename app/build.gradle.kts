@@ -91,6 +91,9 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
+    // Accompanist
+    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 

@@ -11,6 +11,7 @@ import com.gymia.domain.usecase.GetLastLoadForExerciseUseCase
 import com.gymia.domain.usecase.GetLoadSuggestionUseCase
 import com.gymia.domain.usecase.GetWorkoutDayUseCase
 import com.gymia.domain.usecase.LogSessionUseCase
+import com.gymia.ui.notification.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -31,7 +32,8 @@ class ActiveSessionViewModel @Inject constructor(
     private val getLoadSuggestionUseCase: GetLoadSuggestionUseCase,
     private val getWorkoutDayUseCase: GetWorkoutDayUseCase,
     private val logSessionUseCase: LogSessionUseCase,
-    private val sessionTimer: SessionTimer
+    private val sessionTimer: SessionTimer,
+    private val notificationHelper: NotificationHelper
 ) : ViewModel() {
 
     private val dayId: Long = checkNotNull(savedStateHandle["dayId"])
@@ -137,7 +139,8 @@ class ActiveSessionViewModel @Inject constructor(
                 remaining--
                 _uiState.value = _uiState.value.copy(restTimerSeconds = remaining)
             }
-            _uiState.value = _uiState.value.copy(isTimerRunning = false, restTimerSeconds = 0)
+            notificationHelper.showRestCompleteNotification()
+            _uiState.value = _uiState.value.copy(isTimerRunning = false, restTimerSeconds = 0, restTimerCompleted = true)
         }
     }
 
@@ -148,6 +151,10 @@ class ActiveSessionViewModel @Inject constructor(
 
     fun onRestDurationChange(seconds: Int) {
         _uiState.value = _uiState.value.copy(selectedRestDuration = seconds)
+    }
+
+    fun clearTimerCompleted() {
+        _uiState.value = _uiState.value.copy(restTimerCompleted = false)
     }
 
     fun openNotesDialog(exerciseIndex: Int, setIndex: Int) {
