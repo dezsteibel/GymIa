@@ -137,7 +137,7 @@ class ActiveSessionViewModel @Inject constructor(
                 remaining--
                 _uiState.value = _uiState.value.copy(restTimerSeconds = remaining)
             }
-            _uiState.value = _uiState.value.copy(isTimerRunning = false, restTimerSeconds = 0)
+            _uiState.value = _uiState.value.copy(isTimerRunning = false, restTimerSeconds = 0, restTimerCompleted = true)
         }
     }
 
@@ -148,6 +148,10 @@ class ActiveSessionViewModel @Inject constructor(
 
     fun onRestDurationChange(seconds: Int) {
         _uiState.value = _uiState.value.copy(selectedRestDuration = seconds)
+    }
+
+    fun clearTimerCompleted() {
+        _uiState.value = _uiState.value.copy(restTimerCompleted = false)
     }
 
     fun openNotesDialog(exerciseIndex: Int, setIndex: Int) {

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">GymIa</string>
+    <string name="widget_description">Next workout at a glance</string>
 </resources>

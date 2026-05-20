@@ -13,6 +13,7 @@ data class ActiveSessionUiState(
     val isSaving: Boolean = false,
     val sessionFinished: Boolean = false,
     val error: String? = null,
+    val restTimerCompleted: Boolean = false,
     val elapsedSeconds: Int = 0,
     val notesDialogExerciseIndex: Int? = null,
     val notesDialogSetIndex: Int? = null,

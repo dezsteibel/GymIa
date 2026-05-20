@@ -1,11 +1,23 @@
 package com.gymia.ui.workout
 
+import android.Manifest
+import android.content.Context
+import android.content.res.Configuration
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -34,16 +47,24 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -51,9 +72,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import com.gymia.domain.model.LoadSuggestion
 import com.gymia.domain.model.Trend
 import com.gymia.ui.components.RestTimerBar
+import com.gymia.ui.notification.NotificationHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +87,41 @@ fun ActiveSessionScreen(
     onFinished: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val configuration = LocalConfiguration.current
+
+    val context = LocalContext.current
+    val notificationHelper = remember { NotificationHelper(context) }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        NotificationPermissionRequest()
+    }
+
+    // Timer flash animation state
+    var timerFlashRed by remember { mutableStateOf(false) }
+    val timerFlashColor by animateColorAsState(
+        targetValue = if (timerFlashRed) androidx.compose.ui.graphics.Color.Red.copy(alpha = 0.3f)
+                      else androidx.compose.ui.graphics.Color.Transparent,
+        animationSpec = tween(durationMillis = 500),
+        finishedListener = { if (timerFlashRed) timerFlashRed = false },
+        label = "timerFlash"
+    )
+
+    // React to timer completing
+    LaunchedEffect(uiState.restTimerCompleted) {
+        if (uiState.restTimerCompleted) {
+            notificationHelper.showRestCompleteNotification()
+            timerFlashRed = true
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vibratorManager.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            }
+            vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+            viewModel.clearTimerCompleted()
+        }
+    }
 
     LaunchedEffect(uiState.sessionFinished) {
         if (uiState.sessionFinished) onFinished()
@@ -76,6 +136,31 @@ fun ActiveSessionScreen(
         )
     }
 
+    if (configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        LandscapeSessionContent(uiState = uiState, viewModel = viewModel)
+    } else {
+        PortraitSessionContent(uiState = uiState, viewModel = viewModel, timerFlashColor = timerFlashColor)
+    }
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+private fun NotificationPermissionRequest() {
+    val permissionState = rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
+    LaunchedEffect(Unit) {
+        if (!permissionState.status.isGranted) {
+            permissionState.launchPermissionRequest()
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PortraitSessionContent(
+    uiState: ActiveSessionUiState,
+    viewModel: ActiveSessionViewModel,
+    timerFlashColor: Color = Color.Transparent
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -102,14 +187,16 @@ fun ActiveSessionScreen(
             )
         },
         bottomBar = {
-            RestTimerBar(
-                isRunning = uiState.isTimerRunning,
-                remainingSeconds = uiState.restTimerSeconds,
-                selectedDuration = uiState.selectedRestDuration,
-                onStop = viewModel::stopRestTimer,
-                onDurationChange = viewModel::onRestDurationChange,
-                modifier = Modifier.padding(8.dp)
-            )
+            Box(modifier = Modifier.background(timerFlashColor)) {
+                RestTimerBar(
+                    isRunning = uiState.isTimerRunning,
+                    remainingSeconds = uiState.restTimerSeconds,
+                    selectedDuration = uiState.selectedRestDuration,
+                    onStop = viewModel::stopRestTimer,
+                    onDurationChange = viewModel::onRestDurationChange,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
         }
     ) { padding ->
         when {
@@ -134,6 +221,118 @@ fun ActiveSessionScreen(
                 modifier = Modifier.padding(padding)
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LandscapeSessionContent(
+    uiState: ActiveSessionUiState,
+    viewModel: ActiveSessionViewModel
+) {
+    var selectedExerciseIndex by rememberSaveable { mutableIntStateOf(0) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = uiState.dayLabel.ifBlank { "Active Workout" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = formatElapsed(uiState.elapsedSeconds),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                actions = {
+                    TextButton(onClick = viewModel::finishSession, enabled = !uiState.isSaving) {
+                        Text(if (uiState.isSaving) "Saving..." else "Finish")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        BoxWithConstraints(modifier = Modifier.padding(padding).fillMaxSize()) {
+            val leftWidth = maxWidth * 0.40f
+            val rightWidth = maxWidth * 0.60f
+            Row(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .width(leftWidth)
+                        .fillMaxHeight()
+                ) {
+                    itemsIndexed(uiState.exercises) { index, exerciseState ->
+                        LandscapeExerciseItem(
+                            name = exerciseState.exercise.name,
+                            isSelected = index == selectedExerciseIndex,
+                            onSelect = { selectedExerciseIndex = index }
+                        )
+                        HorizontalDivider()
+                    }
+                }
+                Column(
+                    modifier = Modifier
+                        .width(rightWidth)
+                        .fillMaxHeight()
+                ) {
+                    val exerciseState = uiState.exercises.getOrNull(selectedExerciseIndex)
+                    if (exerciseState != null) {
+                        ExerciseCard(
+                            exerciseState = exerciseState,
+                            onRepsChange = { setIndex, value -> viewModel.onRepsChange(selectedExerciseIndex, setIndex, value) },
+                            onLoadChange = { setIndex, value -> viewModel.onLoadChange(selectedExerciseIndex, setIndex, value) },
+                            onConfirmSet = { setIndex -> viewModel.confirmSet(selectedExerciseIndex, setIndex) },
+                            onAddSet = { viewModel.addSet(selectedExerciseIndex) },
+                            onSuggestionTap = { setIndex -> viewModel.onSuggestionTap(selectedExerciseIndex, setIndex) },
+                            onNotesClick = { setIndex -> viewModel.openNotesDialog(selectedExerciseIndex, setIndex) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(8.dp)
+                        )
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
+                    RestTimerBar(
+                        isRunning = uiState.isTimerRunning,
+                        remainingSeconds = uiState.restTimerSeconds,
+                        selectedDuration = uiState.selectedRestDuration,
+                        onStop = viewModel::stopRestTimer,
+                        onDurationChange = viewModel::onRestDurationChange,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LandscapeExerciseItem(
+    name: String,
+    isSelected: Boolean,
+    onSelect: () -> Unit
+) {
+    val background = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                     else MaterialTheme.colorScheme.surface
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect),
+        color = background
+    ) {
+        Text(
+            text = name,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        )
     }
 }
 
