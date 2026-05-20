@@ -78,7 +78,6 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.gymia.domain.model.LoadSuggestion
 import com.gymia.domain.model.Trend
 import com.gymia.ui.components.RestTimerBar
-import com.gymia.ui.notification.NotificationHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,7 +89,6 @@ fun ActiveSessionScreen(
     val configuration = LocalConfiguration.current
 
     val context = LocalContext.current
-    val notificationHelper = remember { NotificationHelper(context) }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         NotificationPermissionRequest()
@@ -109,7 +107,6 @@ fun ActiveSessionScreen(
     // React to timer completing
     LaunchedEffect(uiState.restTimerCompleted) {
         if (uiState.restTimerCompleted) {
-            notificationHelper.showRestCompleteNotification()
             timerFlashRed = true
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager

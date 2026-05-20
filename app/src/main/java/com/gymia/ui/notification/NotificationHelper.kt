@@ -4,8 +4,15 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import androidx.core.app.NotificationCompat
+import com.gymia.R
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class NotificationHelper(private val context: Context) {
+@Singleton
+class NotificationHelper @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -26,7 +33,7 @@ class NotificationHelper(private val context: Context) {
     fun showRestCompleteNotification() {
         if (!notificationManager.areNotificationsEnabled()) return
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Rest Complete 💪")
             .setContentText("Time to get back to work!")
             .setAutoCancel(true)
