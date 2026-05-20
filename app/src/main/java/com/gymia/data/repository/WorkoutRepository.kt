@@ -275,4 +275,16 @@ class WorkoutRepository @Inject constructor(
         if (existing != null) return existing.id
         return exerciseDao.insert(Exercise(name = exercise.name, muscleGroup = "", equipmentType = ""))
     }
+
+    suspend fun getAllSetsWithDatesOnce(): List<DomainSetWithDate> =
+        sessionDao.getAllSetsWithDatesOnce().map { DomainSetWithDate(it.exerciseId, it.reps, it.loadKg, it.date, it.sessionId) }
+
+    suspend fun getAllExercisesAsDomainOnce(): List<DomainExercise> =
+        exerciseDao.getAllExercisesOnce().map { DomainExercise(it.id, it.name, it.muscleGroup, it.equipmentType) }
+
+    suspend fun findOrCreateExercise(name: String, muscleGroup: String, equipmentType: String): Long {
+        val existing = exerciseDao.findByName(name)
+        if (existing != null) return existing.id
+        return exerciseDao.insert(Exercise(name = name, muscleGroup = muscleGroup, equipmentType = equipmentType))
+    }
 }

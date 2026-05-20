@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gymia.domain.model.DeloadReason
+import com.gymia.domain.model.DeloadSuggestion
 import com.gymia.domain.model.ExerciseProgress
 import com.gymia.domain.model.WeeklyVolumePoint
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -71,6 +75,7 @@ fun ProgressScreen(viewModel: ProgressViewModel = hiltViewModel()) {
             is ProgressViewModel.UiState.Success -> ProgressContent(
                 state = state,
                 onSelectExercise = viewModel::selectExercise,
+                onDismissDeload = viewModel::dismissDeload,
                 modifier = Modifier.padding(padding)
             )
         }
@@ -102,6 +107,7 @@ private fun ErrorContent(message: String, modifier: Modifier = Modifier) {
 private fun ProgressContent(
     state: ProgressViewModel.UiState.Success,
     onSelectExercise: (Int) -> Unit,
+    onDismissDeload: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -109,6 +115,10 @@ private fun ProgressContent(
         contentPadding = PaddingValues(CARD_PADDING_DP.dp),
         verticalArrangement = Arrangement.spacedBy(CARD_PADDING_DP.dp)
     ) {
+        val deload = state.deloadSuggestion
+        if (deload != null && deload.shouldDeload && !state.isDeloadDismissed) {
+            item { DeloadBannerCard(suggestion = deload, onDismiss = onDismissDeload) }
+        }
         item { CycleSummaryCard(state.cycleSessionCount, state.cycleTotalVolume) }
         item {
             ExerciseSelector(
@@ -268,5 +278,36 @@ private fun WeeklyVolumeChart(volumes: List<WeeklyVolumePoint>) {
 
 private fun formatWeek(timestamp: Long): String =
     SimpleDateFormat("MM/dd", Locale.getDefault()).format(Date(timestamp))
+
+@Composable
+private fun DeloadBannerCard(
+    suggestion: DeloadSuggestion,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val exercises = suggestion.affectedExercises.joinToString(", ")
+    val reasonText = when (suggestion.reason) {
+        DeloadReason.STAGNATION -> "You've been stuck on $exercises for 3+ sessions"
+        DeloadReason.REGRESSION -> "Your performance is dropping on $exercises"
+        DeloadReason.HIGH_VOLUME -> "Your volume spiked 20%+ — recovery may be compromised"
+        DeloadReason.NONE -> return
+    }
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+    ) {
+        Column(modifier = Modifier.padding(CARD_PADDING_DP.dp)) {
+            Text(reasonText, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer)
+            Spacer(Modifier.height(4.dp))
+            Text("Consider a deload week to recover and continue progressing.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer)
+            TextButton(onClick = onDismiss) {
+                Text("Dismiss for 7 days", color = MaterialTheme.colorScheme.onErrorContainer)
+            }
+        }
+    }
+}
 
 private const val MIN_CHART_POINTS = 2

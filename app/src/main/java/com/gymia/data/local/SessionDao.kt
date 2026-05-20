@@ -92,6 +92,14 @@ interface SessionDao {
     suspend fun getAllSetsOnce(): List<SetRecord>
 
     @Query("""
+        SELECT sr.exerciseId, sr.reps, sr.loadKg, ws.date, sr.sessionId
+        FROM set_records sr
+        INNER JOIN workout_sessions ws ON ws.id = sr.sessionId
+        ORDER BY ws.date ASC
+    """)
+    suspend fun getAllSetsWithDatesOnce(): List<SetWithDate>
+
+    @Query("""
         SELECT sr.id, sr.sessionId, sr.exerciseId, sr.setNumber, sr.reps, sr.loadKg, sr.completed,
                e.name as exerciseName, sr.notes
         FROM set_records sr

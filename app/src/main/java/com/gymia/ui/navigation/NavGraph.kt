@@ -9,6 +9,8 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -31,7 +33,9 @@ import com.gymia.ui.export.ExportScreen
 import com.gymia.ui.stats.StatsScreen
 import com.gymia.ui.history.HistoryScreen
 import com.gymia.ui.history.SessionDetailScreen
+import com.gymia.ui.profile.ProfileScreen
 import com.gymia.ui.progress.ProgressScreen
+import com.gymia.ui.templates.TemplatesScreen
 import com.gymia.ui.workout.ActiveSessionScreen
 import com.gymia.ui.workout.CreatePlanScreen
 import com.gymia.ui.workout.EditPlanScreen
@@ -45,6 +49,8 @@ sealed class Screen(val route: String) {
     object Stats : Screen("stats")
     object Cardio : Screen("cardio")
     object AiCycle : Screen("ai_cycle")
+    object Templates : Screen("templates")
+    object Profile : Screen("profile")
 }
 
 private data class BottomNavItem(val screen: Screen, val label: String, val icon: ImageVector)
@@ -55,7 +61,9 @@ private val bottomNavItems = listOf(
     BottomNavItem(Screen.Progress, "Progress", Icons.AutoMirrored.Filled.TrendingUp),
     BottomNavItem(Screen.Stats, "Stats", Icons.Default.BarChart),
     BottomNavItem(Screen.Cardio, "Cardio", Icons.AutoMirrored.Filled.DirectionsRun),
-    BottomNavItem(Screen.AiCycle, "AI", Icons.Default.AutoAwesome)
+    BottomNavItem(Screen.AiCycle, "AI", Icons.Default.AutoAwesome),
+    BottomNavItem(Screen.Templates, "Templates", Icons.AutoMirrored.Filled.LibraryBooks),
+    BottomNavItem(Screen.Profile, "Profile", Icons.Default.Person)
 )
 
 private val bottomNavRoutes = bottomNavItems.map { it.screen.route }.toSet()
@@ -155,6 +163,18 @@ private fun AppNavHost(navController: NavHostController, modifier: Modifier = Mo
         composable("export") {
             ExportScreen(onBack = { navController.popBackStack() })
         }
+        composable(Screen.Templates.route) {
+            TemplatesScreen(
+                onPlanCreated = {
+                    navController.navigate(Screen.Workout.route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
+        }
+        composable(Screen.Profile.route) { ProfileScreen() }
     }
 }
 
