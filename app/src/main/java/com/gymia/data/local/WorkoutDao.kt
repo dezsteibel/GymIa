@@ -87,4 +87,7 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM workout_plans ORDER BY createdAt ASC")
     suspend fun getAllPlansOnce(): List<WorkoutPlan>
+
+    @Query("SELECT * FROM workout_plans WHERE source = 'ai_generated' ORDER BY createdAt DESC")
+    suspend fun getAiGeneratedPlans(): List<WorkoutPlan>
 }

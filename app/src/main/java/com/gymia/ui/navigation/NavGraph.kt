@@ -28,6 +28,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.gymia.ui.ai.AiCycleScreen
+import com.gymia.ui.comparison.CycleComparisonScreen
 import com.gymia.ui.cardio.CardioScreen
 import com.gymia.ui.export.ExportScreen
 import com.gymia.ui.stats.StatsScreen
@@ -51,6 +52,7 @@ sealed class Screen(val route: String) {
     object AiCycle : Screen("ai_cycle")
     object Templates : Screen("templates")
     object Profile : Screen("profile")
+    object CycleComparison : Screen("cycle_comparison")
 }
 
 private data class BottomNavItem(val screen: Screen, val label: String, val icon: ImageVector)
@@ -126,8 +128,12 @@ private fun AppNavHost(navController: NavHostController, modifier: Modifier = Mo
                         launchSingleTop = true
                         restoreState = true
                     }
-                }
+                },
+                onCompare = { navController.navigate(Screen.CycleComparison.route) }
             )
+        }
+        composable(Screen.CycleComparison.route) {
+            CycleComparisonScreen(onBack = { navController.popBackStack() })
         }
 
         composable("exercise_list") {

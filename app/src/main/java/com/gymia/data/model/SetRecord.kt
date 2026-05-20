@@ -12,5 +12,8 @@ data class SetRecord(
     val reps: Int,
     val loadKg: Float,
     val completed: Boolean = true,
-    val notes: String? = null
+    val notes: String? = null,
+    val setType: String = "NORMAL",
+    val supersetGroupId: Int? = null,
+    val dropSetOrder: Int? = null
 )

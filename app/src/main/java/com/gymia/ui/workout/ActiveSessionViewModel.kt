@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.gymia.data.model.SetRecord
 import com.gymia.data.model.WorkoutSession
 import com.gymia.domain.SessionTimer
+import com.gymia.domain.model.SetType
+import com.gymia.domain.usecase.GenerateWarmUpUseCase
 import com.gymia.domain.usecase.GetExercisesForDayUseCase
 import com.gymia.domain.usecase.GetLastLoadForExerciseUseCase
 import com.gymia.domain.usecase.GetLoadSuggestionUseCase
@@ -33,7 +35,8 @@ class ActiveSessionViewModel @Inject constructor(
     private val getWorkoutDayUseCase: GetWorkoutDayUseCase,
     private val logSessionUseCase: LogSessionUseCase,
     private val sessionTimer: SessionTimer,
-    private val notificationHelper: NotificationHelper
+    private val notificationHelper: NotificationHelper,
+    private val generateWarmUpUseCase: GenerateWarmUpUseCase
 ) : ViewModel() {
 
     private val dayId: Long = checkNotNull(savedStateHandle["dayId"])
@@ -85,6 +88,10 @@ class ActiveSessionViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(isLoading = false, exercises = states)
                 states.forEachIndexed { index, state ->
                     fetchSuggestionForExercise(index, state.exercise.id)
+                    val lastLoad = state.lastBestLoad
+                    if (lastLoad != null && lastLoad >= MIN_LOAD_FOR_WARMUP) {
+                        initializeWarmUp(state.exercise.id, lastLoad)
+                    }
                 }
             }
             .catch { e -> _uiState.value = _uiState.value.copy(isLoading = false, error = e.message) }
@@ -117,7 +124,60 @@ class ActiveSessionViewModel @Inject constructor(
 
     fun confirmSet(exerciseIndex: Int, setIndex: Int) {
         updateSet(exerciseIndex, setIndex) { it.copy(isConfirmed = true) }
-        startRestTimer()
+        val confirmedEntry = _uiState.value.exercises[exerciseIndex].loggedSets[setIndex]
+        handlePostConfirm(exerciseIndex, setIndex, confirmedEntry)
+    }
+
+    private fun handlePostConfirm(exerciseIndex: Int, setIndex: Int, entry: SetEntry) {
+        when (entry.setType) {
+            SetType.DROP_SET -> prefillDropSetNext(exerciseIndex, setIndex, entry.loadKg)
+            SetType.SUPERSET -> Unit
+            SetType.NORMAL -> startRestTimer()
+        }
+    }
+
+    private fun prefillDropSetNext(exerciseIndex: Int, setIndex: Int, confirmedLoad: String) {
+        val load = confirmedLoad.toFloatOrNull() ?: return
+        val reducedLoad = "%.1f".format(load * DROP_SET_LOAD_FACTOR)
+        val exercises = _uiState.value.exercises.toMutableList()
+        val exercise = exercises[exerciseIndex]
+        val nextIndex = setIndex + 1
+        val sets = exercise.loggedSets.toMutableList()
+        if (nextIndex < sets.size) {
+            sets[nextIndex] = sets[nextIndex].copy(loadKg = reducedLoad)
+        } else {
+            sets.add(SetEntry(setNumber = sets.size + 1, loadKg = reducedLoad))
+        }
+        exercises[exerciseIndex] = exercise.copy(loggedSets = sets)
+        _uiState.value = _uiState.value.copy(exercises = exercises)
+    }
+
+    fun markAsSuperset(exerciseIndex: Int, setIndex: Int) {
+        val groupId = (System.currentTimeMillis() and 0x7FFFFFFF).toInt()
+        updateSet(exerciseIndex, setIndex) {
+            it.copy(setType = SetType.SUPERSET, supersetGroupId = groupId)
+        }
+        linkNextExerciseSet(exerciseIndex, groupId)
+    }
+
+    private fun linkNextExerciseSet(exerciseIndex: Int, groupId: Int) {
+        val exercises = _uiState.value.exercises
+        val nextExerciseIndex = exerciseIndex + 1
+        if (nextExerciseIndex >= exercises.size) return
+        val nextSets = exercises[nextExerciseIndex].loggedSets.toMutableList()
+        if (nextSets.isEmpty()) return
+        nextSets[0] = nextSets[0].copy(setType = SetType.SUPERSET, supersetGroupId = groupId)
+        val updatedExercises = exercises.toMutableList()
+        updatedExercises[nextExerciseIndex] = exercises[nextExerciseIndex].copy(loggedSets = nextSets)
+        _uiState.value = _uiState.value.copy(exercises = updatedExercises)
+    }
+
+    fun markAsDropSet(exerciseIndex: Int, setIndex: Int) {
+        updateSet(exerciseIndex, setIndex) { it.copy(setType = SetType.DROP_SET, supersetGroupId = null) }
+    }
+
+    fun resetSetType(exerciseIndex: Int, setIndex: Int) {
+        updateSet(exerciseIndex, setIndex) { it.copy(setType = SetType.NORMAL, supersetGroupId = null) }
     }
 
     fun addSet(exerciseIndex: Int) {
@@ -221,10 +281,45 @@ class ActiveSessionViewModel @Inject constructor(
                         setNumber = entry.setNumber,
                         reps = reps,
                         loadKg = load,
-                        notes = entry.notes.ifBlank { null }
+                        notes = entry.notes.ifBlank { null },
+                        setType = entry.setType.name,
+                        supersetGroupId = entry.supersetGroupId,
+                        dropSetOrder = if (entry.setType == SetType.DROP_SET) entry.setNumber else null
                     )
                 }
         }
+
+    private fun initializeWarmUp(exerciseId: Long, targetLoadKg: Float) {
+        val sets = generateWarmUpUseCase(targetLoadKg)
+        val updated = _uiState.value.warmUpSets.toMutableMap()
+        updated[exerciseId] = sets
+        _uiState.value = _uiState.value.copy(warmUpSets = updated)
+    }
+
+    fun toggleWarmUpSet(exerciseId: Long, setIndex: Int) {
+        val current = _uiState.value.warmUpSets[exerciseId] ?: return
+        val updated = current.toMutableList()
+        updated[setIndex] = updated[setIndex].copy(completed = !updated[setIndex].completed)
+        val updatedMap = _uiState.value.warmUpSets.toMutableMap()
+        updatedMap[exerciseId] = updated
+        _uiState.value = _uiState.value.copy(warmUpSets = updatedMap)
+    }
+
+    fun skipWarmUp(exerciseId: Long) {
+        val current = _uiState.value.warmUpSets[exerciseId] ?: return
+        val allCompleted = current.map { it.copy(completed = true) }
+        val updatedMap = _uiState.value.warmUpSets.toMutableMap()
+        updatedMap[exerciseId] = allCompleted
+        _uiState.value = _uiState.value.copy(warmUpSets = updatedMap)
+    }
+
+    fun toggleWarmUpExpanded(exerciseIndex: Int) {
+        val exercises = _uiState.value.exercises.toMutableList()
+        if (exerciseIndex >= exercises.size) return
+        val current = exercises[exerciseIndex]
+        exercises[exerciseIndex] = current.copy(warmUpExpanded = !current.warmUpExpanded)
+        _uiState.value = _uiState.value.copy(exercises = exercises)
+    }
 
     private fun updateSet(exerciseIndex: Int, setIndex: Int, transform: (SetEntry) -> SetEntry) {
         val exercises = _uiState.value.exercises.toMutableList()
@@ -232,5 +327,10 @@ class ActiveSessionViewModel @Inject constructor(
         sets[setIndex] = transform(sets[setIndex])
         exercises[exerciseIndex] = exercises[exerciseIndex].copy(loggedSets = sets)
         _uiState.value = _uiState.value.copy(exercises = exercises)
+    }
+
+    companion object {
+        private const val MIN_LOAD_FOR_WARMUP = 20f
+        private const val DROP_SET_LOAD_FACTOR = 0.80f
     }
 }

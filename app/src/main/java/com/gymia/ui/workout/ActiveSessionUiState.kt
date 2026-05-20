@@ -2,6 +2,8 @@ package com.gymia.ui.workout
 
 import com.gymia.domain.model.DomainExercise
 import com.gymia.domain.model.LoadSuggestion
+import com.gymia.domain.model.SetType
+import com.gymia.domain.model.WarmUpSet
 
 data class ActiveSessionUiState(
     val isLoading: Boolean = true,
@@ -17,7 +19,8 @@ data class ActiveSessionUiState(
     val elapsedSeconds: Int = 0,
     val notesDialogExerciseIndex: Int? = null,
     val notesDialogSetIndex: Int? = null,
-    val notesDialogText: String = ""
+    val notesDialogText: String = "",
+    val warmUpSets: Map<Long, List<WarmUpSet>> = emptyMap()
 )
 
 data class ExerciseSessionState(
@@ -25,7 +28,8 @@ data class ExerciseSessionState(
     val setsTarget: Int,
     val loggedSets: List<SetEntry>,
     val lastBestLoad: Float? = null,
-    val loadSuggestion: LoadSuggestion? = null
+    val loadSuggestion: LoadSuggestion? = null,
+    val warmUpExpanded: Boolean = false
 )
 
 data class SetEntry(
@@ -33,5 +37,7 @@ data class SetEntry(
     val reps: String = "",
     val loadKg: String = "",
     val isConfirmed: Boolean = false,
-    val notes: String = ""
+    val notes: String = "",
+    val setType: SetType = SetType.NORMAL,
+    val supersetGroupId: Int? = null
 )

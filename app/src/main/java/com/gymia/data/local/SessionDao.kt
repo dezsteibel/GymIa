@@ -91,6 +91,12 @@ interface SessionDao {
     @Query("SELECT * FROM set_records ORDER BY id ASC")
     suspend fun getAllSetsOnce(): List<SetRecord>
 
+    @Query("SELECT * FROM workout_sessions WHERE planId = :planId ORDER BY date ASC")
+    suspend fun getSessionsForPlan(planId: Long): List<WorkoutSession>
+
+    @Query("SELECT * FROM set_records WHERE sessionId = :sessionId ORDER BY setNumber ASC")
+    suspend fun getSetsForSessionOnce(sessionId: Long): List<SetRecord>
+
     @Query("""
         SELECT sr.exerciseId, sr.reps, sr.loadKg, ws.date, sr.sessionId
         FROM set_records sr
