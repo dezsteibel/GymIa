@@ -1,4 +1,4 @@
-package com.gymia.data.local
+package com.gymia.data.repository
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences

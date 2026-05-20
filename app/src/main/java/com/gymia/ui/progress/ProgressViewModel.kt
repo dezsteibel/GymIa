@@ -2,7 +2,7 @@ package com.gymia.ui.progress
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gymia.data.local.DeloadDismissalDataSource
+import com.gymia.data.repository.DeloadDismissalDataSource
 import com.gymia.domain.model.DeloadReason
 import com.gymia.domain.model.DeloadSuggestion
 import com.gymia.domain.model.ExerciseProgress

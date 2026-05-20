@@ -10,22 +10,19 @@ import com.gymia.domain.model.ExperienceLevel
 import com.gymia.domain.model.Goal
 import com.gymia.domain.model.UserProfile
 import com.gymia.domain.model.WorkoutCycle
-import com.gymia.domain.usecase.GetUserProfileUseCase
-import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 class AiRepository @Inject constructor(
     private val anthropicApi: AnthropicApi,
-    private val json: Json,
-    private val getUserProfile: GetUserProfileUseCase
+    private val json: Json
 ) {
     suspend fun generateCycle(
         sessions: List<WorkoutSession>,
+        profile: UserProfile,
         deloadNote: String? = null
     ): Result<WorkoutCycle> = runCatching {
-        val profile = getUserProfile().first()
         val request = AiRequest(
             system = buildSystemPrompt(profile),
             messages = listOf(AiMessage(role = "user", content = buildUserMessage(sessions, deloadNote)))

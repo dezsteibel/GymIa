@@ -39,7 +39,7 @@ class WorkoutTemplateRepository @Inject constructor() {
         description = "High-volume hypertrophy split targeting each muscle group twice per week.",
         targetGoal = Goal.HYPERTROPHY,
         daysPerWeek = 6,
-        days = listOf(pplPush(), pplPull(), pplLegs())
+        days = listOf(pplPush(), pplPull(), pplLegs(), pplPush2(), pplPull2(), pplLegs2())
     )
 
     private fun pplPush() = TemplateDayInput("Push", listOf(
@@ -58,6 +58,27 @@ class WorkoutTemplateRepository @Inject constructor() {
 
     private fun pplLegs() = TemplateDayInput("Legs", listOf(
         ex("Squat", "legs", "barbell", 4),
+        ex("Romanian Deadlift", "legs", "barbell", 3),
+        ex("Leg Press", "legs", "machine", 3),
+        ex("Calf Raise", "legs", "machine", 4)
+    ))
+
+    private fun pplPush2() = TemplateDayInput("Push 2", listOf(
+        ex("Incline Press", "chest", "dumbbell", 4),
+        ex("Overhead Press", "shoulders", "barbell", 3),
+        ex("Lateral Raise", "shoulders", "dumbbell", 3),
+        ex("Tricep Pushdown", "arms", "cable", 3)
+    ))
+
+    private fun pplPull2() = TemplateDayInput("Pull 2", listOf(
+        ex("Chest-Supported Row", "back", "dumbbell", 4),
+        ex("Pull-up", "back", "bodyweight", 3),
+        ex("Face Pull", "shoulders", "cable", 3),
+        ex("Bicep Curl", "arms", "dumbbell", 3)
+    ))
+
+    private fun pplLegs2() = TemplateDayInput("Legs 2", listOf(
+        ex("Front Squat", "legs", "barbell", 4),
         ex("Romanian Deadlift", "legs", "barbell", 3),
         ex("Leg Press", "legs", "machine", 3),
         ex("Calf Raise", "legs", "machine", 4)
